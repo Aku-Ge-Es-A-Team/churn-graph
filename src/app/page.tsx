@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { connection } from "next/server";
 import { RankingBoard } from "@/components/ranking/ranking-board";
 import { getRanking } from "@/server/queries";
@@ -14,6 +15,9 @@ async function RankingContent() {
         <p className="mt-3 text-muted-foreground">
           Ranked customer risk findings from the context graph, with renewal timing, estimated exposure, and evidence-backed signals.
         </p>
+        <Link href="/tanya" className="mt-3 inline-block text-sm font-medium underline underline-offset-4">
+          Ask the graph →
+        </Link>
       </header>
       <RankingBoard rows={rows} />
     </main>

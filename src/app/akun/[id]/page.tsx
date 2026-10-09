@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ExplanationPanel } from "@/components/account/explanation-panel";
 import { RetentionCardView } from "@/components/account/retention-card";
-import { EvidenceExplorer } from "@/components/evidence/evidence-explorer";
+import { EvidenceGraph } from "@/components/evidence/evidence-graph";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LEVEL_STYLES, formatFullIdr, renewalLabel, signalLabel } from "@/lib/ranking";
@@ -63,7 +63,7 @@ async function AccountDetailView({ id }: { id: string }) {
 
       <ExplanationPanel explanation={explanation} />
       <RetentionCardView card={retention} />
-      <EvidenceExplorer payload={evidence} signals={signals} />
+      <EvidenceGraph account={row.account} initialPayload={evidence} signals={signals} />
     </>
   );
 }
