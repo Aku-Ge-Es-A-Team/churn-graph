@@ -1,41 +1,43 @@
-// Semua angka skoring yang belum disepakati tim. Fungsi di score.ts/rank.ts menerimanya lewat `cfg`.
+// All scoring numbers that are not fixed by the PRD. score.ts and rank.ts receive them through `cfg`.
 
-export type TabelRenewal = {
-  // Urut menaik berdasarkan maksHari; hari negatif (renewal sudah lewat) otomatis jatuh ke tingkat pertama.
-  tingkat: { maksHari: number; faktor: number }[];
-  lebihDari: number; // di atas tingkat terakhir
-  tanpaTanggal: number; // tanggal renewal tidak ada / tidak valid
+export type RenewalTable = {
+  /** Ascending by maxDays; negative days (renewal already passed) fall into the first tier. */
+  tiers: { maxDays: number; factor: number }[];
+  /** Factor above the last tier. */
+  beyond: number;
+  /** Factor when the renewal date is missing or invalid. */
+  missingDate: number;
 };
 
-// ASUMSI, belum dikalibrasi.
-export const FAKTOR_RENEWAL: TabelRenewal = {
-  tingkat: [
-    { maksHari: 30, faktor: 1.5 },
-    { maksHari: 90, faktor: 1.25 },
-    { maksHari: 180, faktor: 1.0 },
+// From Rencana Teknis §3.4 (F06) as quoted in F-05: <=60 days 1.5, <=120 days 1.25, otherwise 1.0.
+export const RENEWAL_FACTORS: RenewalTable = {
+  tiers: [
+    { maxDays: 60, factor: 1.5 },
+    { maxDays: 120, factor: 1.25 },
   ],
-  lebihDari: 0.8,
-  tanpaTanggal: 1.0,
+  beyond: 1.0,
+  missingDate: 1.0,
 };
 
-// PLACEHOLDER: skala ini mengasumsikan bobot sinyal 1–5 dan HARUS dikalibrasi ulang
-// setelah keluaran F-04 yang nyata tersedia. Skor di bawah Waspada = Aman.
-export const AMBANG_LEVEL = { Kritis: 8, Tinggi: 5, Waspada: 2 };
+// ASSUMPTION (F-05 §9): thresholds are not in the PRD. Calibrated against the golden ranking:
+// with the current signal weights C01 = 10, C04 = 6, C03 = 5, C05 = 4. High starts at 4.5, the midpoint
+// between C03 (5, High) and C05 (4, Watch), so no golden account sits exactly on a boundary.
+// A score below the Watch threshold is Safe.
+export const LEVEL_THRESHOLDS = { Critical: 8, High: 4.5, Watch: 2 } as const;
 
-// Tanggal snapshot dataset (SNAPSHOT_DATE di PRD/doc 00). Hanya dipakai pemanggil paling luar;
-// fungsi inti selalu menerima `asOf` sebagai parameter.
-export const TANGGAL_ACUAN_DEFAULT = "2026-10-01";
+/** Dataset snapshot date (SNAPSHOT_DATE). Only the outermost caller uses it; core functions take `asOf`. */
+export const DEFAULT_REFERENCE_DATE = "2026-10-01";
 
-export const MAKS_SINYAL_TERATAS = 3;
+export const MAX_TOP_SIGNALS = 3;
 
 export type ScoringConfig = {
-  faktorRenewal: TabelRenewal;
-  ambangLevel: typeof AMBANG_LEVEL;
-  maksSinyalTeratas: number;
+  renewalFactors: RenewalTable;
+  levelThresholds: { Critical: number; High: number; Watch: number };
+  maxTopSignals: number;
 };
 
-export const KONFIG_DEFAULT: ScoringConfig = {
-  faktorRenewal: FAKTOR_RENEWAL,
-  ambangLevel: AMBANG_LEVEL,
-  maksSinyalTeratas: MAKS_SINYAL_TERATAS,
+export const DEFAULT_CONFIG: ScoringConfig = {
+  renewalFactors: RENEWAL_FACTORS,
+  levelThresholds: LEVEL_THRESHOLDS,
+  maxTopSignals: MAX_TOP_SIGNALS,
 };

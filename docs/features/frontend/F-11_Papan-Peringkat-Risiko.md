@@ -1,5 +1,5 @@
 # 10 -- Papan peringkat risiko / Radar home
-> ID PRD: F-11 · Prioritas: Must · Penanggung jawab: Tegar (Frontend) · Estimasi: 1,5 jam-orang (PRD) · Status: Belum dimulai
+> ID PRD: F-11 · Prioritas: Must · Penanggung jawab: Tegar (Frontend) · Estimasi: 1,5 jam-orang (PRD) · Status: Implementasi selesai dan terverifikasi (2026-10-09); cek URL produksi menunggu deploy Vercel (ditunda)
 
 ## 1. Ringkasan Fitur
 - Apa: halaman `/` (Radar home) berupa tabel 40 akun yang diurutkan menurut risiko, dengan kolom level, badge "Dashboard vs Temuan", renewal H-x, rupiah berisiko berlabel Estimasi, dan 3 sinyal teratas; baris yang divergen disorot warna level; ada filter "fokus" C01–C06.
@@ -88,6 +88,12 @@
 - Risiko: beban Tegar -- total task FE Must (10, 11, 12) 11,5 jam + skeleton/fixture di 00 (2,5 jam) ≈ 14 jam, setara kapasitas 14 jam PRD (≈12,3 jam pada sisa waktu 15,8 jam) belum termasuk pitch, video, dan skrip demo -- mitigasi: kerjakan urutan PRD §7 (F-11 J2–9, F-12 J6–12); potong state/legenda kosmetik lebih dulu, jangan kolom wajib AC.
 - Risiko: `getRanking()` dari 05 terlambat → jalur demo membutuhkan data nyata di integrasi J11 -- mitigasi: fixture dipakai untuk pengembangan; T10-06 hanya mengganti sumber data (0,5 jam).
 - Risiko: perilaku Next.js 16 dengan `cacheComponents` berbeda dari yang dikenal (AGENTS.md) -- mitigasi: baca dokumen lokal di `node_modules/next/dist/docs/` sebelum T10-02 dan T10-05.
+
+- ✅ KEPUTUSAN (2026-10-09, Adrian): semua identifier, konten aplikasi, dan UI memakai bahasa Inggris; dokumentasi tetap Indonesia. Kosakata graph yang tersimpan di Aura (label `Akun`, `Sinyal`, ..., tipe relasi, kode sinyal, nama properti dataset) TIDAK diterjemahkan karena ditetapkan dokumen produk dan sudah ada di data; pemetaannya ada di `docs/glossary.md`. Tipe di `src/types/graph.ts` kini berbahasa Inggris (mis. `RiskRow`: `account`, `name`, `dashboard`, `level`, `score`, `diverges`, `renewalDays`, `annualValue`, `atRiskValue`, `p`, `topSignals`; level `Critical/High/Watch/Safe` = Kritis/Tinggi/Waspada/Aman, warna dashboard `Green/Yellow/Red` = Hijau/Kuning/Merah).
+- ✅ KEPUTUSAN (2026-10-09, Adrian): tugas milik Dio untuk F-05 s.d. F-11 dikerjakan Adrian; pembagian penanggung jawab di header diabaikan sementara.
+- ✅ HASIL: halaman `/` (`src/app/page.tsx`: Suspense + skeleton, data dari `getRanking()` per request), `src/components/ranking/ranking-board.tsx` (tabel 40 akun: peringkat, akun, level, badge "Dashboard: Green vs Findings: Critical", renewal, nilai berisiko berlabel Estimate dengan p di legenda, 3 sinyal teratas, filter "Focus accounts (C01–C06)", sorotan baris divergen), `src/components/ui/{table,badge}.tsx` (ditulis tangan mengikuti gaya shadcn; tanpa menjalankan CLI), `src/app/error.tsx` (state error generik tanpa detail koneksi). Fungsi murni di `src/lib/ranking.ts`; tes `tests/lib/ranking.test.ts`.
+- ✅ VERIFIKASI manual (build produksi + `next start` ke Aura): 40 baris, C01 pertama, badge divergen, legenda Estimate, tombol fokus. Kolom "Renewal" menampilkan "in N days" (tanggal absolut ada di halaman akun).
+- ⚠️ ASUMSI: urutan baris diambil apa adanya dari `getRanking()` (tanpa urut ulang di FE); filter fokus dijalankan di client dari daftar ID tetap C01–C06.
 
 ## 10. Definition of Done
 - [ ] Semua acceptance criteria di section 3 lolos uji di section 8

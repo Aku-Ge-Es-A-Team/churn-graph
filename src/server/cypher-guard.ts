@@ -1,24 +1,13 @@
-// Pengaman untuk query Cypher yang berasal dari LLM: fungsi murni, tanpa koneksi database.
-// Lapis ini bekerja BERSAMA session READ di driver (lihat neo4j.ts), bukan penggantinya.
+// Guard for Cypher queries that originate from an LLM or the console: a pure function with no database access.
+// This layer works TOGETHER with the READ session of the driver (see neo4j.ts), it does not replace it.
 
 const MAX_LIMIT = 200;
 
-// Kata kunci/klausa tulis & berbahaya. Dicocokkan dengan word boundary, case-insensitive.
-const DENIED_KEYWORDS = [
-  "CREATE",
-  "MERGE",
-  "DELETE",
-  "DETACH",
-  "SET",
-  "REMOVE",
-  "DROP",
-  "FOREACH",
-  "START",
-];
+// Write / dangerous keywords. Matched on word boundaries, case-insensitive.
+const DENIED_KEYWORDS = ["CREATE", "MERGE", "DELETE", "DETACH", "SET", "REMOVE", "DROP", "FOREACH", "START"];
 
-// Mengganti isi komentar/string dengan spasi SEPANJANG ASLINYA (bukan memendekkan),
-// supaya posisi karakter tetap sejajar dengan query asli — dibutuhkan agar pemotongan
-// klausa LIMIT di bawah bisa dilakukan pada query asli, bukan versi yang sudah disamarkan.
+// Replaces comment and string contents with spaces OF THE SAME LENGTH, so character positions stay aligned
+// with the original query. The LIMIT clause is cut from the original text, not from the masked copy.
 function stripCommentsAndStrings(query: string): string {
   const blank = (match: string) => " ".repeat(match.length);
   return query
@@ -29,69 +18,46 @@ function stripCommentsAndStrings(query: string): string {
 }
 
 function hasWord(haystack: string, word: string): boolean {
-  // \s matches newline/tab juga, jadi "DETACH\n DELETE" tetap kena.
+  // \b also matches around newlines/tabs, so "DETACH\n DELETE" is still caught.
   return new RegExp(`\\b${word}\\b`, "i").test(haystack);
 }
 
-export type GuardResult = { ok: true; query: string } | { ok: false; alasan: string };
+export type GuardResult = { ok: true; query: string } | { ok: false; reason: string };
+
+export const READ_ONLY_MESSAGE = "Only read queries are allowed";
 
 export function guardCypher(query: string, opts?: { maxLimit?: number }): GuardResult {
   const maxLimit = opts?.maxLimit ?? MAX_LIMIT;
   const trimmed = query.trim();
-  if (!trimmed) {
-    return { ok: false, alasan: "Query kosong tidak diizinkan." };
-  }
+  if (!trimmed) return { ok: false, reason: "An empty query is not allowed." };
 
-  // withoutTrailingSemicolon tetap berisi teks ASLI (dipakai untuk hasil akhir).
-  // cleaned dipakai HANYA untuk pemeriksaan kata kunci, posisinya sejajar dengan aslinya.
+  // `withoutTrailingSemicolon` keeps the ORIGINAL text (used for the result); `cleaned` is only used for keyword checks.
   const withoutTrailingSemicolon = trimmed.replace(/;+\s*$/, "");
   const cleaned = stripCommentsAndStrings(withoutTrailingSemicolon);
 
-  // Titik koma di luar string/komentar berarti multi-statement.
-  if (cleaned.includes(";")) {
-    return { ok: false, alasan: "Hanya satu statement yang diizinkan." };
-  }
+  // A semicolon outside strings/comments means multiple statements.
+  if (cleaned.includes(";")) return { ok: false, reason: "Only a single statement is allowed." };
 
   for (const keyword of DENIED_KEYWORDS) {
-    if (hasWord(cleaned, keyword)) {
-      return { ok: false, alasan: `Klausa "${keyword}" tidak diizinkan.` };
-    }
+    if (hasWord(cleaned, keyword)) return { ok: false, reason: `The "${keyword}" clause is not allowed.` };
+  }
+  if (/\bLOAD\s+CSV\b/i.test(cleaned)) return { ok: false, reason: 'The "LOAD CSV" clause is not allowed.' };
+  if (/\bapoc\s*\./i.test(cleaned)) return { ok: false, reason: 'The "apoc" namespace is not allowed.' };
+  if (/\bdbms\s*\./i.test(cleaned)) return { ok: false, reason: 'The "dbms" namespace is not allowed.' };
+
+  // Every CALL is denied except the full-text search procedure.
+  for (const match of cleaned.matchAll(/\bCALL\s+([a-zA-Z0-9_.]+)/gi)) {
+    if (match[1].toLowerCase() !== "db.index.fulltext.querynodes") return { ok: false, reason: "CALL procedures are not allowed." };
   }
 
-  if (/\bLOAD\s+CSV\b/i.test(cleaned)) {
-    return { ok: false, alasan: 'Klausa "LOAD CSV" tidak diizinkan.' };
-  }
-
-  if (/\bapoc\s*\./i.test(cleaned)) {
-    return { ok: false, alasan: 'Namespace "apoc" tidak diizinkan.' };
-  }
-  if (/\bdbms\s*\./i.test(cleaned)) {
-    return { ok: false, alasan: 'Namespace "dbms" tidak diizinkan.' };
-  }
-
-  // Semua CALL dilarang kecuali satu prosedur full-text yang diizinkan.
-  const callMatches = cleaned.matchAll(/\bCALL\s+([a-zA-Z0-9_.]+)/gi);
-  for (const match of callMatches) {
-    if (match[1].toLowerCase() !== "db.index.fulltext.querynodes") {
-      return { ok: false, alasan: "Prosedur CALL tidak diizinkan." };
-    }
-  }
-
-  // Paksa LIMIT di level atas. Query tanpa LIMIT dapat default aman; LIMIT yang melebihi
-  // batas DITURUNKAN (bukan ditolak) karena niat pengguna ("butuh baris") tetap valid,
-  // hanya jumlahnya yang perlu dibatasi agar tidak membebani database.
-  // Dicari di `cleaned` (posisinya sejajar dengan `withoutTrailingSemicolon`) supaya LIMIT
-  // palsu di dalam string/komentar tidak ikut terdeteksi, lalu dipotong dari teks ASLI.
+  // Force a top-level LIMIT. A missing LIMIT gets the default; a LIMIT above the maximum is lowered (not rejected),
+  // because the intent ("I need rows") is valid and only the volume must be bounded.
   const limitMatch = cleaned.match(/\bLIMIT\s+(\d+)\s*$/i);
   let finalQuery = withoutTrailingSemicolon;
   if (!limitMatch) {
     finalQuery = `${finalQuery} LIMIT ${maxLimit}`;
-  } else {
-    const requested = parseInt(limitMatch[1], 10);
-    if (requested > maxLimit) {
-      finalQuery = withoutTrailingSemicolon.slice(0, limitMatch.index) + `LIMIT ${maxLimit}`;
-    }
+  } else if (parseInt(limitMatch[1], 10) > maxLimit) {
+    finalQuery = withoutTrailingSemicolon.slice(0, limitMatch.index) + `LIMIT ${maxLimit}`;
   }
-
   return { ok: true, query: finalQuery };
 }

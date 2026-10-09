@@ -1,8 +1,8 @@
-// SPIKE T00-12 -- skrip sementara, BUKAN bagian aplikasi (hapus/abaikan setelah A8 tervalidasi).
-// Tujuan: membuktikan satu tool call lewat Vercel AI SDK ke endpoint OpenAI-compatible 9router,
-// memakai klien yang sama dengan aplikasi (src/server/ai/provider.ts).
-// Jalankan: bun scripts/spike-llm.ts   (Bun memuat .env.local otomatis)
-// Env: LLM_BASE_URL, LLM_API_KEY, LLM_MODEL (lihat .env.example).
+// SPIKE T00-12 -- temporary script, NOT part of the application (delete/ignore once A8 is validated).
+// Goal: prove one tool call through the Vercel AI SDK to the OpenAI-compatible 9router endpoint,
+// using the same client as the application (src/server/ai/provider.ts).
+// Run: bun scripts/spike-llm.ts   (Bun loads .env.local automatically)
+// Env: LLM_BASE_URL, LLM_API_KEY, LLM_MODEL (see .env.example).
 import { generateText, isStepCount, tool } from "ai";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
@@ -16,34 +16,34 @@ try {
   process.exit(2);
 }
 
-// Nonce acak: model tidak mungkin menebaknya, jadi muncul di jawaban hanya bila tool benar-benar dipanggil dan hasilnya kembali.
+// Random nonce: the model cannot guess it, so it only appears in the answer if the tool was really called and its result came back.
 const nonce = randomBytes(4).toString("hex");
 
 try {
   const result = await generateText({
     model,
     tools: {
-      ambil_kode_verifikasi: tool({
-        description: "Mengambil kode verifikasi sesi saat ini. Wajib dipanggil; kode tidak bisa ditebak.",
-        inputSchema: z.object({ topik: z.string().describe("Topik singkat, bebas diisi") }),
-        execute: async ({ topik }) => ({ topik, kode: nonce }),
+      get_verification_code: tool({
+        description: "Fetches the verification code of the current session. It must be called; the code cannot be guessed.",
+        inputSchema: z.object({ topic: z.string().describe("Short topic, free-form") }),
+        execute: async ({ topic }) => ({ topic, code: nonce }),
       }),
     },
     stopWhen: isStepCount(3),
-    prompt: "Panggil tool ambil_kode_verifikasi dengan topik 'spike', lalu tulis kode yang dikembalikan tool dalam satu kalimat.",
+    prompt: "Call the tool get_verification_code with the topic 'spike', then write the code returned by the tool in one sentence.",
   });
 
   const calls = result.steps.flatMap((step) => step.toolCalls);
   const results = result.steps.flatMap((step) => step.toolResults);
-  console.log("tool dipanggil :", calls.map((c) => `${c.toolName}(${JSON.stringify(c.input)})`).join(", ") || "(tidak ada)");
-  console.log("hasil tool     :", results.map((r) => JSON.stringify(r.output)).join(", ") || "(tidak ada)");
-  console.log("jawaban model  :", result.text.trim());
+  console.log("tool called    :", calls.map((c) => `${c.toolName}(${JSON.stringify(c.input)})`).join(", ") || "(none)");
+  console.log("tool result    :", results.map((r) => JSON.stringify(r.output)).join(", ") || "(none)");
+  console.log("model answer   :", result.text.trim());
 
   const ok = calls.length > 0 && result.text.includes(nonce);
-  console.log(ok ? "SPIKE LULUS: tool dipanggil dan hasilnya kembali ke model." : "SPIKE GAGAL: tool tidak dipanggil atau hasilnya tidak muncul di jawaban (A8 runtuh bila konsisten).");
+  console.log(ok ? "SPIKE PASSED: the tool was called and its result came back to the model." : "SPIKE FAILED: the tool was not called or its result did not appear in the answer (A8 collapses if this is consistent).");
   process.exit(ok ? 0 : 1);
 } catch (error) {
-  // Hanya status/pesan; header (berisi API key) tidak pernah dicetak.
+  // Only status/message; headers (which contain the API key) are never printed.
   const e = error as { name?: string; statusCode?: number; message?: string };
   console.error(`SPIKE ERROR: ${e.name ?? "Error"}${e.statusCode ? ` HTTP ${e.statusCode}` : ""} -- ${String(e.message).slice(0, 300)}`);
   process.exit(1);

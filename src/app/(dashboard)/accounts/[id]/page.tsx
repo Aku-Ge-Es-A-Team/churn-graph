@@ -1,117 +1,84 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { routes } from "@/lib/site-config";
+import { notFound } from "next/navigation";
+import { connection } from "next/server";
+import { ExplanationPanel } from "@/components/account/explanation-panel";
+import { RetentionCardView } from "@/components/account/retention-card";
+import { EvidenceExplorer } from "@/components/evidence/evidence-explorer";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { graphC01Fixture, graphC01Highlight } from "@/fixtures/graph-c01";
-import { riskRowsFixture } from "@/fixtures/risk-rows";
-import type { GraphPayload } from "@/types/graph";
+import { LEVEL_STYLES, formatFullIdr, renewalLabel, signalLabel } from "@/lib/ranking";
+import { getAccountDetail } from "@/server/queries";
 
-// Skeleton /accounts/[id] (T00-11, dulu /akun/[id]): fixture sementara; diganti getAccountEvidence() di F-08.
-const graphFixtures: Record<string, GraphPayload> = { C01: graphC01Fixture };
-const highlightFixtures: Record<string, string[]> = { C01: graphC01Highlight };
-
-// Area yang diisi fitur lain; dibiarkan kosong bernama di skeleton.
-const AREA_KOSONG = [
-  { id: "viewer", judul: "Penampil graph", fitur: "F-12" },
-  { id: "tindakan", judul: "Kartu tindakan", fitur: "F-09" },
-  { id: "grafik", judul: "Grafik usage vs rilis", fitur: "F-18" },
-  { id: "timeline", judul: "Timeline", fitur: "F-19" },
-];
-
-function AkunDetail({ id }: { id: string }) {
-  const row = riskRowsFixture.find((r) => r.akun === id);
-  const graph = graphFixtures[id];
-  const highlight = highlightFixtures[id] ?? [];
-  const namaNode = new Map(graph?.nodes.map((n) => [n.id, n.label]) ?? []);
+async function AccountDetailView({ id }: { id: string }) {
+  await connection();
+  const detail = await getAccountDetail(id);
+  if (!detail) notFound();
+  const { row, signals, evidence, explanation, retention } = detail;
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-semibold">
-          {id}
-          {row ? ` · ${row.nama}` : ""}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {row ? `Level ${row.level} · dashboard ${row.dashboard} · data fixture (sementara)` : "Akun tidak ada di fixture."}
-        </p>
-      </div>
-
-      {!graph ? (
-        <p className="rounded-lg border p-6 text-center text-muted-foreground">
-          Belum ada jalur bukti untuk akun {id}.
-        </p>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Node ({graph.nodes.length})</CardTitle>
-              <CardDescription>Disorot: {highlight.join(", ")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="flex flex-col gap-1">
-                {graph.nodes.map((n) => (
-                  <li key={n.id} className={highlight.includes(n.id) ? "font-medium" : undefined}>
-                    <span className="tabular-nums">{n.id}</span> <span className="text-muted-foreground">:{n.label}</span>{" "}
-                    {typeof n.props.nama === "string" ? n.props.nama : typeof n.props.subjek === "string" ? n.props.subjek : typeof n.props.judul === "string" ? n.props.judul : ""}
-                    <span className="block text-xs text-muted-foreground">
-                      {String(n.props.source_file)} · {String(n.props.source_id)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Relasi ({graph.edges.length})</CardTitle>
-              <CardDescription>Relasi turunan diberi tanda &ldquo;turunan&rdquo;.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="flex flex-col gap-1">
-                {graph.edges.map((e) => (
-                  <li key={e.id}>
-                    ({e.source}
-                    <span className="text-muted-foreground">:{namaNode.get(e.source)}</span>)-[:{e.type}]→({e.target}
-                    <span className="text-muted-foreground">:{namaNode.get(e.target)}</span>)
-                    {e.derived ? <span className="ml-1 text-xs text-muted-foreground">turunan</span> : null}
-                    <span className="block text-xs text-muted-foreground">
-                      {String(e.props.source_file)} · {String(e.props.source_id)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold">
+            {row.account} · {row.name}
+          </h1>
+          <Badge className={LEVEL_STYLES[row.level].badge}>{row.level}</Badge>
+          {row.diverges ? (
+            <Badge className="bg-foreground text-background">
+              Dashboard: {row.dashboard} vs Findings: {row.level}
+            </Badge>
+          ) : (
+            <Badge className="bg-muted text-foreground">Dashboard: {row.dashboard}</Badge>
+          )}
         </div>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {AREA_KOSONG.map((area) => (
-          <section
-            key={area.id}
-            aria-label={area.judul}
-            data-area={area.id}
-            className="flex min-h-32 flex-col items-center justify-center rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground"
-          >
-            <span className="font-medium text-foreground">{area.judul}</span>
-            <span>Belum dibangun ({area.fitur})</span>
-          </section>
-        ))}
+        <p className="text-sm text-muted-foreground">
+          Score {row.score.toFixed(2)} · renewal {renewalLabel(row.renewalDays)} · annual value {formatFullIdr(row.annualValue)} · at risk {formatFullIdr(row.atRiskValue)} (estimate, p = {row.p})
+        </p>
       </div>
+
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle>Signals</CardTitle>
+          <CardDescription>{signals.length ? `${signals.length} signals from the rule engine.` : "No signals were triggered."}</CardDescription>
+        </CardHeader>
+        {signals.length ? (
+          <CardContent>
+            <ul className="flex flex-col gap-2">
+              {signals.map((s) => (
+                <li key={`${s.code}-${s.since}`} className="rounded-md border p-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{signalLabel(s.code)}</span>
+                    <span className="text-muted-foreground">
+                      weight {s.weight} · since {s.since} · {s.evidenceIds.length} evidence nodes
+                    </span>
+                  </div>
+                  <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-words text-muted-foreground">{JSON.stringify(s.facts)}</pre>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        ) : null}
+      </Card>
+
+      <ExplanationPanel explanation={explanation} />
+      <RetentionCardView card={retention} />
+      <EvidenceExplorer payload={evidence} signals={signals} />
     </>
   );
 }
 
-export default function AkunPage({ params }: PageProps<"/accounts/[id]">) {
+export default function AccountPage({ params }: PageProps<"/accounts/[id]">) {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
       <Link href={routes.dashboard} className="text-sm text-muted-foreground hover:text-foreground">
-        ← Kembali ke peringkat
+        ← Back to the ranking
       </Link>
-      {/* cacheComponents: params adalah data runtime, aksesnya wajib di dalam Suspense */}
-      <Suspense fallback={<p className="text-muted-foreground">Memuat akun…</p>}>
+      {/* cacheComponents: params are runtime data, so they must be read inside Suspense */}
+      <Suspense fallback={<p className="text-muted-foreground">Loading the account…</p>}>
         {params.then(({ id }) => (
-          <AkunDetail id={id} />
+          <AccountDetailView id={decodeURIComponent(id)} />
         ))}
       </Suspense>
     </main>

@@ -1,156 +1,126 @@
 import { describe, expect, test } from "bun:test";
-import { P_LEVEL, type DashboardWarna, type Level } from "../../../src/types/graph";
+import { DEFAULT_CONFIG } from "../../../src/server/scoring/config";
 import {
-  AMBANG_LEVEL,
-  FAKTOR_RENEWAL,
-  KONFIG_DEFAULT,
-  MAKS_SINYAL_TERATAS,
-  TANGGAL_ACUAN_DEFAULT,
-} from "../../../src/server/scoring/config";
-import {
-  faktorRenewal,
-  hariKeRenewal,
-  hitungDivergen,
-  rupiahBerisiko,
-  sinyalTeratas,
-  skorAkun,
-  tentukanLevel,
+  accountScore,
+  atRiskValue,
+  daysToRenewal,
+  divergesFromDashboard,
+  levelFor,
+  renewalFactor,
+  topSignals,
 } from "../../../src/server/scoring/score";
-import { ASOF, CFG_UJI, sinyal } from "../../fixtures/scoring/fixture";
+import { AS_OF, signal } from "../../helpers/signals";
 
-describe("config default (kunci nilai spesifikasi)", () => {
-  test("nilai placeholder sesuai spesifikasi task F-05", () => {
-    expect(FAKTOR_RENEWAL).toEqual({
-      tingkat: [
-        { maksHari: 30, faktor: 1.5 },
-        { maksHari: 90, faktor: 1.25 },
-        { maksHari: 180, faktor: 1.0 },
-      ],
-      lebihDari: 0.8,
-      tanpaTanggal: 1.0,
-    });
-    expect(AMBANG_LEVEL).toEqual({ Kritis: 8, Tinggi: 5, Waspada: 2 });
-    expect(MAKS_SINYAL_TERATAS).toBe(3);
-    expect(TANGGAL_ACUAN_DEFAULT).toBe("2026-10-01");
-    expect(KONFIG_DEFAULT).toEqual({ faktorRenewal: FAKTOR_RENEWAL, ambangLevel: AMBANG_LEVEL, maksSinyalTeratas: 3 });
+describe("daysToRenewal", () => {
+  test("C04 renews on 2026-11-05 → 35 days from the snapshot", () => {
+    expect(daysToRenewal("2026-11-05", AS_OF)).toBe(35);
+  });
+
+  test("a past renewal gives negative days; the same day gives 0", () => {
+    expect(daysToRenewal("2026-09-25", AS_OF)).toBe(-6);
+    expect(daysToRenewal("2026-10-01", AS_OF)).toBe(0);
+  });
+
+  test("invalid or missing dates → null (no NaN)", () => {
+    expect(daysToRenewal(null, AS_OF)).toBeNull();
+    expect(daysToRenewal("", AS_OF)).toBeNull();
+    expect(daysToRenewal("2026-02-30", AS_OF)).toBeNull();
+    expect(daysToRenewal("01/11/2026", AS_OF)).toBeNull();
+    expect(daysToRenewal("2026-11-05", new Date("nope"))).toBeNull();
   });
 });
 
-describe("hariKeRenewal", () => {
+describe("renewalFactor", () => {
   test.each([
-    ["2026-01-11", 10],
-    ["2026-01-01", 0],
-    ["2025-12-31", -1],
-    ["2027-01-01", 365],
-  ])("%s → %p", (tgl, hari) => {
-    expect(hariKeRenewal(tgl, ASOF)).toBe(hari);
+    [-10, 1.5],
+    [0, 1.5],
+    [60, 1.5],
+    [61, 1.25],
+    [120, 1.25],
+    [121, 1.0],
+    [400, 1.0],
+  ])("%i days → factor %f", (days, expected) => {
+    expect(renewalFactor(days)).toBe(expected);
   });
 
-  test("jam pada asOf tidak menggeser hari kalender", () => {
-    expect(hariKeRenewal("2026-01-02", new Date("2026-01-01T23:59:00Z"))).toBe(1);
-  });
-
-  test.each([null, "", "bukan-tanggal", "2026-1-5", "2026-02-30", "2026-13-01"])("tidak valid %p → null", (tgl) => {
-    expect(hariKeRenewal(tgl, ASOF)).toBeNull();
-  });
-
-  test("asOf tidak valid → null", () => {
-    expect(hariKeRenewal("2026-01-11", new Date("x"))).toBeNull();
+  test("no renewal date → neutral factor", () => {
+    expect(renewalFactor(null)).toBe(1.0);
   });
 });
 
-describe("faktorRenewal (tabel disuntik)", () => {
+describe("accountScore and levelFor", () => {
+  test("no signals → score 0 and level Safe", () => {
+    expect(accountScore([], 35)).toBe(0);
+    expect(levelFor(0)).toBe("Safe");
+  });
+
+  test("score = Σ weight × renewal factor", () => {
+    const signals = [signal({ account: "C01", code: "A", weight: 3 }), signal({ account: "C01", code: "B", weight: 5 })];
+    expect(accountScore(signals, 75)).toBe(8 * 1.25);
+  });
+
+  test("a non-finite weight is ignored instead of poisoning the score", () => {
+    const signals = [signal({ account: "C01", code: "A", weight: Number.NaN }), signal({ account: "C01", code: "B", weight: 2 })];
+    expect(accountScore(signals, null)).toBe(2);
+  });
+
   test.each([
-    [-10, 2],
-    [0, 2],
-    [30, 2],
-    [31, 1.5],
-    [90, 1.5],
-    [91, 1],
-    [180, 1],
-    [181, 0.5],
-    [null, 0.9],
-  ])("%p hari → %p", (hari, f) => {
-    expect(faktorRenewal(hari, CFG_UJI.faktorRenewal)).toBe(f);
+    [10, "Critical"],
+    [8, "Critical"],
+    [7.99, "High"],
+    [4.5, "High"],
+    [4.49, "Watch"],
+    [2, "Watch"],
+    [1.99, "Safe"],
+  ])("score %f → %s", (score, level) => {
+    expect(levelFor(score)).toBe(level as ReturnType<typeof levelFor>);
+  });
+
+  test("thresholds are configurable", () => {
+    const cfg = { ...DEFAULT_CONFIG, levelThresholds: { Critical: 100, High: 50, Watch: 10 } };
+    expect(levelFor(10, cfg)).toBe("Watch");
   });
 });
 
-describe("skorAkun", () => {
-  test("Σ bobot × faktor renewal", () => {
-    expect(skorAkun([sinyal("ACC-A", "X", 2), sinyal("ACC-A", "Y", 3)], 10, CFG_UJI)).toBe(10);
-  });
-
-  test("tanpa sinyal = 0", () => {
-    expect(skorAkun([], 10, CFG_UJI)).toBe(0);
-  });
-
-  test("bobot NaN/Infinity diabaikan", () => {
-    const s = [sinyal("ACC-A", "X", 2), sinyal("ACC-A", "N", NaN), sinyal("ACC-A", "I", Infinity), sinyal("ACC-A", "M", -Infinity)];
-    expect(skorAkun(s, 151, CFG_UJI)).toBe(2);
-  });
-});
-
-describe("tentukanLevel (ambang disuntik 10/6/3)", () => {
+describe("divergesFromDashboard", () => {
   test.each([
-    [10.01, "Kritis"],
-    [10, "Kritis"],
-    [9.99, "Tinggi"],
-    [6, "Tinggi"],
-    [5.99, "Waspada"],
-    [3, "Waspada"],
-    [2.99, "Aman"],
-    [0, "Aman"],
-  ] as const)("%p → %s", (skor, level) => {
-    expect(tentukanLevel(skor, CFG_UJI)).toBe(level);
+    ["Green", "Critical", true],
+    ["Green", "High", true],
+    ["Green", "Watch", false],
+    ["Green", "Safe", false],
+    ["Yellow", "Critical", false],
+    ["Red", "Critical", false],
+  ] as const)("%s dashboard with level %s → %s", (dashboard, level, expected) => {
+    expect(divergesFromDashboard(dashboard, level)).toBe(expected);
   });
 });
 
-describe("rupiahBerisiko", () => {
-  test.each(["Kritis", "Tinggi", "Waspada", "Aman"] as const)("%s memakai P_LEVEL", (level) => {
-    expect(rupiahBerisiko(1_000_000, level)).toEqual({ p: P_LEVEL[level], rupiah: Math.round(1_000_000 * P_LEVEL[level]) });
-  });
-
-  test("dibulatkan ke bilangan bulat terdekat", () => {
-    expect(rupiahBerisiko(11, "Waspada").rupiah).toBe(2); // 2.2
-    expect(rupiahBerisiko(13, "Waspada").rupiah).toBe(3); // 2.6
-  });
-
-  test.each([-5_000_000, NaN, Infinity])("nilai %p diperlakukan 0", (v) => {
-    expect(rupiahBerisiko(v, "Kritis")).toEqual({ p: 0.6, rupiah: 0 });
-  });
-});
-
-describe("hitungDivergen", () => {
+describe("atRiskValue", () => {
   test.each([
-    ["Hijau", "Tinggi", true],
-    ["Hijau", "Kritis", true],
-    ["Hijau", "Waspada", false],
-    ["Hijau", "Aman", false],
-    ["Kuning", "Kritis", false],
-    ["Merah", "Kritis", false],
-  ] as [DashboardWarna, Level, boolean][])("%s + %s → %p", (d, l, hasil) => {
-    expect(hitungDivergen(d, l)).toBe(hasil);
+    ["Critical", 0.6, 89_964_000],
+    ["High", 0.4, 59_976_000],
+    ["Watch", 0.2, 29_988_000],
+    ["Safe", 0.05, 7_497_000],
+  ] as const)("%s → p %f", (level, p, amount) => {
+    expect(atRiskValue(149_940_000, level)).toEqual({ p, amount });
+  });
+
+  test("a zero, negative or NaN annual value gives 0 and never NaN", () => {
+    for (const v of [0, -5, Number.NaN, Number.POSITIVE_INFINITY]) expect(atRiskValue(v, "High").amount).toBe(0);
   });
 });
 
-describe("sinyalTeratas", () => {
-  const daftar = [
-    sinyal("ACC-A", "B", 2, "2025-03-01"),
-    sinyal("ACC-A", "A", 2, "2025-03-01"),
-    sinyal("ACC-A", "C", 2, "2025-01-01"),
-    sinyal("ACC-A", "D", 5),
-    sinyal("ACC-A", "E", 1),
-    sinyal("ACC-A", "N", NaN),
-  ];
+describe("topSignals", () => {
+  const s = (code: string, weight: number, since: string) => signal({ account: "C01", code, weight, since });
 
-  test("maks 3, bobot menurun, seri → sejak lebih awal → kode alfabet", () => {
-    expect(sinyalTeratas(daftar, 3).map((s) => s.kode)).toEqual(["D", "C", "A"]);
-    expect(sinyalTeratas(daftar, 5).map((s) => s.kode)).toEqual(["D", "C", "A", "B", "E"]);
+  test("weight descending, then earlier since, then code; does not mutate the input", () => {
+    const input = [s("B", 2, "2026-08-01"), s("A", 2, "2026-08-01"), s("C", 3, "2026-09-01"), s("D", 2, "2026-07-01")];
+    const copy = [...input];
+    expect(topSignals(input, 3).map((x) => x.code)).toEqual(["C", "D", "A"]);
+    expect(input).toEqual(copy);
   });
 
-  test("tidak mengubah array asli", () => {
-    const salinan = structuredClone(daftar);
-    sinyalTeratas(daftar);
-    expect(daftar).toEqual(salinan);
+  test("empty input → empty list", () => {
+    expect(topSignals([])).toEqual([]);
   });
 });

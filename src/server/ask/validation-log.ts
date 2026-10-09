@@ -1,38 +1,38 @@
 import type { ValidationResult } from "./validate-citations";
 
-// Hanya hitungan dan kode alasan: teks pertanyaan pengguna dan isi `teks` sumber tidak pernah dicatat.
+// Counts and reason codes only: the user's question text and the evidence text are never logged.
 export type ValidationLogEntry = {
-  waktu: string;
-  lolos: number;
-  ditandai: number;
-  dibuang: number;
-  alasan: string[];
+  time: string;
+  passed: number;
+  flagged: number;
+  discarded: number;
+  reasons: string[];
 };
 
-// ponytail: in-memory per instance, tumbuh tanpa batas dan hilang saat restart; cukup untuk demo/drill.
+// In-memory per instance: grows without bound and is lost on restart; enough for the demo/drill.
 const entries: ValidationLogEntry[] = [];
 
 export function logValidation(result: ValidationResult): ValidationLogEntry {
   const entry: ValidationLogEntry = {
-    waktu: new Date().toISOString(),
-    lolos: result.klaimLolos.length,
-    ditandai: result.klaimDitandai.length,
-    dibuang: result.klaimDibuang.length,
-    alasan: [...result.klaimDitandai, ...result.klaimDibuang].flatMap((k) => k.alasan),
+    time: new Date().toISOString(),
+    passed: result.passed.length,
+    flagged: result.flagged.length,
+    discarded: result.discarded.length,
+    reasons: [...result.flagged, ...result.discarded].flatMap((k) => k.reasons),
   };
   entries.push(entry);
-  console.info(JSON.stringify({ event: "validasi_sitasi", ...entry }));
+  console.info(JSON.stringify({ event: "citation_validation", ...entry }));
   return entry;
 }
 
 export function getValidationStats() {
-  const perAlasan: Record<string, number> = {};
-  let klaimLolos = 0;
+  const perReason: Record<string, number> = {};
+  let passedClaims = 0;
   for (const e of entries) {
-    klaimLolos += e.lolos;
-    for (const a of e.alasan) perAlasan[a] = (perAlasan[a] ?? 0) + 1;
+    passedClaims += e.passed;
+    for (const r of e.reasons) perReason[r] = (perReason[r] ?? 0) + 1;
   }
-  return { jumlahValidasi: entries.length, klaimLolos, perAlasan };
+  return { validations: entries.length, passedClaims, perReason };
 }
 
 export function resetValidationLog(): void {

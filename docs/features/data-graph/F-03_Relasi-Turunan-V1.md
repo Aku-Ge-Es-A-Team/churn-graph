@@ -1,5 +1,5 @@
 # 03 -- Relasi turunan v1
-> ID PRD: F-03 · Prioritas: Must · Penanggung jawab: Adrian (Data Graph) · Estimasi: 2,5 jam-orang (PRD) · Status: Belum dimulai
+> ID PRD: F-03 · Prioritas: Must · Penanggung jawab: Adrian (Data Graph) · Estimasi: 2,5 jam-orang (PRD) · Status: Implementasi selesai dan terverifikasi terhadap Aura (2026-10-09); menunggu review PR
 
 ## 1. Ringkasan Fitur
 - Apa: membuat relasi yang tidak ada di file mana pun: `MENJALANKAN_VERSI`, `Anomali` (`MENGALAMI` → `BERTEPATAN_DENGAN` ke Rilis), `MEMBALAS`, `MENYEBUT` (Interaksi → Kompetitor), dan `KANDIDAT_DISEBABKAN_OLEH`, semuanya bertanda `derived`, `rule`, `confidence`.
@@ -55,11 +55,11 @@
 ## 6. Breakdown Task Implementasi
 | ID | Task | Layer | Estimasi (jam) | Bergantung pada | Output terverifikasi |
 | --- | --- | --- | --- | --- | --- |
-| T03-01 | ETL: `MENJALANKAN_VERSI` (tanggal pertama sebuah versi muncul di usage per outlet, properti `sejak`) + node `:Rilis` (`v4.11`, `v4.12`, ...), dengan `derived`/`rule`/`confidence`. | BE | 0,75 | 02 (F-02) | `edges.jsonl` memuat `MENJALANKAN_VERSI`; outlet T0531/T0600/T0636 tidak punya relasi ke `v4.12`. |
-| T03-02 | ETL: Anomali (Agu–Sep 2026 vs baseline Okt–Des 2025, ambang 25% sebagai parameter) + `MENGALAMI` → `Anomali` → `BERTEPATAN_DENGAN` → Rilis. | BE | 0,5 | T03-01 | 6 outlet C03 punya `Anomali` dengan `delta_pct` di rentang −36 s.d. −34 dan terhubung ke `v4.12`. |
-| T03-03 | ETL: `MEMBALAS` (dari `membalas_id`) dan `MENYEBUT` (kamus kompetitor dari `crm_deals.kompetitor` dicocokkan ke interaksi non-template). | BE | 0,5 | 02 (F-02) | Jumlah `MEMBALAS` = jumlah `membalas_id` terisi; tidak ada `MENYEBUT` dari interaksi `template=true`. |
-| T03-04 | Tulis `scripts/run-cypher.ts` (jalankan semua `.cypher` di sebuah folder, urut nama) + `cypher/derive/kandidat_bug412.cypher` (kamus gejala dari judul tiket nyata); script `derive`. | DB | 1,0 | T03-01, T03-03 | `bun run derive` membuat relasi `KANDIDAT_DISEBABKAN_OLEH` dengan `derived=true`, `rule`, `confidence`; T0531/T0600/T0636 tidak mendapat relasi. |
-| T03-05 | Tes golden `tests/golden/derive.test.ts`: properti `derived`/`rule`/`confidence`, anomali C03 (6 outlet, −34 s.d. −36%), versi dari usage, jumlah kandidat (konstanta tunggal), idempotensi `rebuild`. | Test | 0,5 | T03-02, T03-04 | `bun test tests/golden/derive.test.ts` hijau; jalur error: tiket di luar kamus/outlet non-offline tidak mendapat relasi. |
+$1 **Status: selesai** -- `scripts/etl/derive.ts`: 1.582 `MENJALANKAN_VERSI` dari usage; T0531/T0600/T0636 tidak punya relasi ke `v4.12`. |
+$1 **Status: selesai** -- 11 `Anomali`: 6 outlet C03 (−34,43 s.d. −36,04%) dan 5 outlet C05 (−28,94 s.d. −31,12%), semuanya `BERTEPATAN_DENGAN v4.12`. |
+$1 **Status: selesai** -- 111 `MEMBALAS` (= `membalas_id` terisi); 3 `MENYEBUT` (I0296, I0331, I0348; semuanya non-template). |
+$1 **Status: selesai** -- `scripts/run-cypher.ts` + `cypher/derive/kandidat_bug412.cypher`; `bun run derive` → 14 relasi; T0531/T0600/T0636 tidak mendapat relasi. |
+$1 **Status: selesai** -- `tests/golden/derive.test.ts`; konstanta golden 14 = 8 + 6 di `tests/helpers/aura.ts`. |
 | | **Total 3,25 jam (estimasi PRD: 2,5 jam)** -- selisih +30%, lihat ⚠️ ASUMSI di section 9. | | | | |
 
 ## 7. Dependensi
@@ -89,6 +89,13 @@
 - Risiko: kamus gejala terlalu longgar/ketat sehingga jumlah kandidat meleset dari 14 -- mitigasi/fallback: ambil kata dari judul tiket nyata; bila beda, cek tanggal tiket terhadap `MENJALANKAN_VERSI.sejak` (Rencana Teknis Langkah 6).
 - Risiko: gejala sama tercatat sebagai `permintaan_fitur` (Z1 di 04 mengecualikan kategori ini dari sinyal negatif) -- mitigasi/fallback: kategori tidak dipakai sebagai filter di sini; Z1 menyaring di sisi sinyal.
 - Risiko: golden test Wajib lulus di gerbang J8 (PRD §7) -- mitigasi/fallback: bila terlambat, D berhenti menambah relasi turunan dan fokus ke F-04.
+
+- ✅ KEPUTUSAN (2026-10-09): jumlah kandidat memakai 14 (C03 8 + C05 6). Terbukti dari data: filter struktural saja (outlet offline, menjalankan v4.12 menurut usage, tiket dibuat sesudah `sejak`, tanpa bug tertaut) sudah menghasilkan tepat 14 tiket, dan kamus gejala dari judul nyata ("Laporan tidak sesuai" ×8, "Selisih transaksi" ×3, "Sinkronisasi" ×2, "Data penjualan hilang" ×1) mencocokkan ke-14-nya. Versi 7 + 4 (Tegar) tidak didukung data ini; konstanta tetap satu tempat bila nanti diganti.
+- 🔁 USULAN PERUBAHAN: (a) `scripts/etl/derive.ts` (modul derivasi di ETL, sesuai ⚠️ ASUMSI nama berkas); (b) node `Anomali` memakai ID `ANM-<outlet>`; (c) `confidence` dipilih: `MENJALANKAN_VERSI` 1,0 · `MEMBALAS` 1,0 · `Anomali`/`MENGALAMI` 0,9 · `MENYEBUT` 0,9 · `BERTEPATAN_DENGAN` 0,8 · `KANDIDAT_DISEBABKAN_OLEH` 0,8 (nilai belum ada di dokumen).
+- ⚠️ ASUMSI (terjawab): metrik Anomali = rata-rata HARIAN `jumlah_transaksi` Agu–Sep 2026 vs rata-rata harian Okt–Des 2025 per outlet; hasilnya −34,4% s.d. −36,0% untuk 6 outlet C03, sesuai Brief §4. Hanya metrik transaksi yang dijadikan Anomali; penurunan `transaksi_offline_tersinkron` (≈ −88%) tersedia di `UsageBulan.delta_offline_pct` tetapi belum dijadikan Anomali terpisah.
+- ⚠️ ASUMSI: rilis yang "bertepatan" = versi terakhir yang diadopsi outlet setelah awal data dan sebelum akhir jendela. `MENJALANKAN_VERSI.sejak` yang sama dengan awal data (2025-10-01) diberi `sejak_adalah_awal_data: true` (itu bukan tanggal adopsi). Provenance turunan: `source_file` = berkas aturan (`scripts/etl/derive.ts` atau `cypher/derive/...`), `dasar_file` = berkas data asal.
+- ⚠️ ASUMSI: aturan `kandidat_bug412.cypher` menyebut `BUG-412` secara literal (sesuai contoh Rencana Langkah 6); larangan ID hard-coded berlaku untuk `cypher/signals/` (F-04), bukan untuk derive.
+- Hasil: 5 outlet C05 juga beranomali (−29% s.d. −31%) -- konsisten dengan Brief ("pola identik"); 0 outlet lain; kontrol offline di akun lain (mis. C01-O30, C06-O30) tidak beranomali. Organisasi "PT Teknologi Kasir Prima" terdeteksi mirip KasirPro dan hanya dicatat di `quality-report.json`, tidak digabung.
 
 ## 10. Definition of Done
 - [ ] Semua acceptance criteria di section 3 lolos uji di section 8

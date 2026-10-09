@@ -1,8 +1,8 @@
 import { connection } from "next/server";
 import { readCypher } from "@/server/neo4j";
 
-// Dengan cacheComponents, `runtime`/`dynamic` tidak boleh diekspor (runtime default sudah nodejs);
-// connection() yang membuat route ini dinamis per request.
+// With cacheComponents, `runtime`/`dynamic` must not be exported (the default runtime is already nodejs);
+// connection() is what makes this route dynamic per request.
 
 export async function GET() {
   await connection();
@@ -15,8 +15,8 @@ export async function GET() {
       latencyMs: Math.round(performance.now() - start),
     });
   } catch (err) {
-    // Detail hanya ke log server, tidak ke klien.
-    console.error("[health] cek Neo4j gagal:", err instanceof Error ? err.message : err);
+    // Details go to the server log only, never to the client.
+    console.error("[health] Neo4j check failed:", err instanceof Error ? err.message : err);
     return Response.json({ status: "error", neo4j: false }, { status: 503 });
   }
 }

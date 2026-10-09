@@ -1,59 +1,55 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { EvidenceRegistry } from "../../../src/server/ask/evidence";
+import { REFUSAL_MESSAGE, VERIFY_MARKER, renderAnswer } from "../../../src/server/ask/render-answer";
 import { validateAnswer } from "../../../src/server/ask/validate-citations";
-import { PENANDA_VERIFIKASI, PESAN_DITOLAK, renderAnswer } from "../../../src/server/ask/render-answer";
 import { getValidationStats, logValidation, resetValidationLog } from "../../../src/server/ask/validation-log";
 
 const registry = new EvidenceRegistry();
 registry.add([
-  { id: "tiket-7", source_file: "tickets.csv", source_id: "T-007", teks: "Printer struk sering macet sejak update." },
-  { id: "email-1", source_file: "emails.csv", source_id: "E-001", teks: "Harga naik 15% tahun ini." },
+  { id: "ticket-7", source_file: "tickets.csv", source_id: "T-007", text: "The receipt printer jams often since the update." },
+  { id: "email-1", source_file: "emails.csv", source_id: "E-001", text: "Prices go up 15% this year." },
 ]);
 
 describe("renderAnswer", () => {
-  test("kalimat bebas LLM tanpa bukti tidak muncul di teks tampilan", () => {
+  test("free LLM sentences without evidence never reach the display text", () => {
     const result = validateAnswer(
       {
-        jawaban: "Printer sering macet. Pelanggan PASTI churn bulan depan.",
-        klaim: [{ teks: "Printer sering macet.", bukti_ids: ["tiket-7"], kutipan: "sering macet" }],
+        answer: "The printer jams. The customer WILL churn next month.",
+        claims: [{ text: "The printer jams.", evidenceIds: ["ticket-7"], quote: "jams often" }],
       },
       registry,
     );
     const out = renderAnswer(result);
-    expect(out.ditolak).toBe(false);
-    expect(out.jawaban).toBe("Printer sering macet.");
-    expect(out.jawaban).not.toContain("PASTI churn");
+    expect(out.refused).toBe(false);
+    expect(out.answer).toBe("The printer jams.");
+    expect(out.answer).not.toContain("WILL churn");
   });
 
-  test("tidak ada klaim lolos → ditolak dengan pesan preset", () => {
-    const result = validateAnswer(
-      { jawaban: "Pelanggan akan churn.", klaim: [{ teks: "Pelanggan akan churn.", bukti_ids: ["palsu"] }] },
-      registry,
-    );
-    const out = renderAnswer(result);
-    expect(out).toEqual({ jawaban: PESAN_DITOLAK, klaim: [], ditolak: true });
+  test("no claim passes → refused with the preset message", () => {
+    const result = validateAnswer({ answer: "The customer will churn.", claims: [{ text: "The customer will churn.", evidenceIds: ["fake"] }] }, registry);
+    expect(renderAnswer(result)).toEqual({ answer: REFUSAL_MESSAGE, claims: [], refused: true });
   });
 
-  test("klaim ditandai muncul dengan penanda, setelah klaim lolos", () => {
+  test("flagged claims appear with a marker, after the passed claims", () => {
     const result = validateAnswer(
       {
-        klaim: [
-          { teks: "Harga naik 40%.", bukti_ids: ["email-1"] },
-          { teks: "Printer sering macet.", bukti_ids: ["tiket-7"] },
-          { teks: "Tanpa bukti.", bukti_ids: [] },
+        claims: [
+          { text: "Prices go up 40%.", evidenceIds: ["email-1"] },
+          { text: "The printer jams.", evidenceIds: ["ticket-7"] },
+          { text: "No evidence.", evidenceIds: [] },
         ],
       },
       registry,
     );
     const out = renderAnswer(result);
-    expect(out.jawaban).toBe(`Printer sering macet.\n${PENANDA_VERIFIKASI} Harga naik 40%.`);
-    expect(out.klaim.map((k) => k.teks)).toEqual(["Printer sering macet.", "Harga naik 40%."]);
-    expect(out.catatan).toContain("1 klaim perlu verifikasi");
-    expect(out.catatan).toContain("1 klaim dibuang");
+    expect(out.answer).toBe(`The printer jams.\n${VERIFY_MARKER} Prices go up 40%.`);
+    expect(out.claims.map((c) => c.text)).toEqual(["The printer jams.", "Prices go up 40%."]);
+    expect(out.note).toContain("1 claim(s) need verification");
+    expect(out.note).toContain("1 claim(s) were discarded");
   });
 });
 
-describe("validation-log", () => {
+describe("validation log", () => {
   let infoSpy: ReturnType<typeof spyOn>;
   beforeEach(() => {
     resetValidationLog();
@@ -61,35 +57,23 @@ describe("validation-log", () => {
   });
   afterEach(() => infoSpy.mockRestore());
 
-  test("statistik per alasan dan jumlah klaim lolos; teks tidak dicatat", () => {
+  test("per-reason statistics and passed-claim count; claim text is never logged", () => {
     logValidation(
-      validateAnswer(
-        {
-          klaim: [
-            { teks: "Printer sering macet.", bukti_ids: ["tiket-7"] },
-            { teks: "RAHASIA tanpa bukti.", bukti_ids: [] },
-          ],
-        },
-        registry,
-      ),
+      validateAnswer({ claims: [{ text: "The printer jams.", evidenceIds: ["ticket-7"] }, { text: "SECRET without evidence.", evidenceIds: [] }] }, registry),
     );
-    logValidation(validateAnswer({ klaim: [{ teks: "Harga naik 40%.", bukti_ids: ["email-1"] }] }, registry));
+    logValidation(validateAnswer({ claims: [{ text: "Prices go up 40%.", evidenceIds: ["email-1"] }] }, registry));
 
-    expect(getValidationStats()).toEqual({
-      jumlahValidasi: 2,
-      klaimLolos: 1,
-      perAlasan: { tanpa_bukti: 1, angka_tidak_ditemukan: 1 },
-    });
+    expect(getValidationStats()).toEqual({ validations: 2, passedClaims: 1, perReason: { no_evidence: 1, number_not_found: 1 } });
     expect(infoSpy).toHaveBeenCalledTimes(2);
     const logged = infoSpy.mock.calls.map((c: unknown[]) => String(c[0])).join("\n");
-    expect(logged).not.toContain("RAHASIA");
-    expect(logged).not.toContain("Printer");
-    expect(JSON.parse(String(infoSpy.mock.calls[0][0])).lolos).toBe(1);
+    expect(logged).not.toContain("SECRET");
+    expect(logged).not.toContain("printer");
+    expect(JSON.parse(String(infoSpy.mock.calls[0][0])).passed).toBe(1);
   });
 
-  test("resetValidationLog mengosongkan state", () => {
-    logValidation(validateAnswer({ klaim: [] }, registry));
+  test("resetValidationLog empties the state", () => {
+    logValidation(validateAnswer({ claims: [] }, registry));
     resetValidationLog();
-    expect(getValidationStats()).toEqual({ jumlahValidasi: 0, klaimLolos: 0, perAlasan: {} });
+    expect(getValidationStats()).toEqual({ validations: 0, passedClaims: 0, perReason: {} });
   });
 });

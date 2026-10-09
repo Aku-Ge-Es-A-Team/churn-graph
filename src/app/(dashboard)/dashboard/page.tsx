@@ -1,64 +1,29 @@
-import Link from "next/link";
-import { routes } from "@/lib/site-config";
-import { riskRowsFixture } from "@/fixtures/risk-rows";
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { RankingBoard } from "@/components/ranking/ranking-board";
+import { getRanking } from "@/server/queries";
 
-// Skeleton /dashboard (T00-11, dulu "/"): sumber data sementara = fixture; diganti getRanking() di F-05/F-11.
-const rupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
-
-export default function Home() {
-  const rows = riskRowsFixture;
-
+async function RankingContent() {
+  await connection();
+  const rows = await getRanking();
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Peringkat risiko churn</h1>
-        <p className="text-sm text-muted-foreground">Data fixture (sementara) · snapshot 2026-10-01 · nilai berisiko = Estimasi</p>
-      </div>
-
-      {rows.length === 0 ? (
-        <p className="rounded-lg border p-6 text-center text-muted-foreground">Belum ada akun untuk ditampilkan.</p>
-      ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <caption className="sr-only">Akun pelanggan diurutkan menurut risiko churn</caption>
-            <thead className="bg-muted text-left text-muted-foreground">
-              <tr>
-                <th scope="col" className="p-3">Akun</th>
-                <th scope="col" className="p-3">Level</th>
-                <th scope="col" className="p-3">Dashboard</th>
-                <th scope="col" className="p-3 text-right">Skor</th>
-                <th scope="col" className="p-3 text-right">Renewal</th>
-                <th scope="col" className="p-3 text-right">Nilai berisiko (Estimasi)</th>
-                <th scope="col" className="p-3">Sinyal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.akun} className="border-t">
-                  <th scope="row" className="p-3 text-left font-medium">
-                    <Link href={routes.account(row.akun)} className="underline-offset-4 hover:underline">
-                      {row.akun} · {row.nama}
-                    </Link>
-                  </th>
-                  <td className="p-3">{row.level}</td>
-                  <td className="p-3">
-                    {row.dashboard}
-                    {row.divergen ? <span className="ml-1 text-xs font-medium text-destructive">divergen</span> : null}
-                  </td>
-                  <td className="p-3 text-right tabular-nums">{row.skor}</td>
-                  <td className="p-3 text-right tabular-nums">
-                    {row.renewalHari === null ? "—" : `H-${row.renewalHari}`}
-                  </td>
-                  <td className="p-3 text-right tabular-nums">{rupiah.format(row.rupiahBerisiko)}</td>
-                  <td className="p-3 text-muted-foreground">
-                    {row.sinyalTeratas.length > 0 ? row.sinyalTeratas.map((s) => s.kode).join(", ") : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-6 py-10">
+      <header className="max-w-3xl">
+        <p className="text-sm font-medium text-primary">Data Graph · F-05 / F-11</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Churn early warning</h1>
+        <p className="mt-3 text-muted-foreground">
+          Ranked customer risk findings from the context graph, with renewal timing, estimated exposure, and evidence-backed signals.
+        </p>
+      </header>
+      <RankingBoard rows={rows} />
     </main>
   );
+}
+
+function RankingFallback() {
+  return <main className="mx-auto w-full max-w-6xl px-6 py-10"><div className="h-64 animate-pulse rounded-lg border bg-muted/30" /></main>;
+}
+
+export default function HomePage() {
+  return <Suspense fallback={<RankingFallback />}><RankingContent /></Suspense>;
 }

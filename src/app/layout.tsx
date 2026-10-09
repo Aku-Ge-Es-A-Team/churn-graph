@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Montserrat, Newsreader } from "next/font/google";
+import { Geist_Mono, Montserrat, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { siteConfig } from "@/lib/site-config";
 
-// Tipografi brand Churn Graph: judul = font-heading (Newsreader, sementara sampai file Palagio tersedia),
-// paragraf & UI = Montserrat, kode = Geist Mono.
+// Tipografi brand Churn Graph: judul = Playfair Display (`font-heading`), paragraf & UI = Montserrat (`font-sans`),
+// kode = Geist Mono.
 const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-sans" });
-const newsreader = Newsreader({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-serif" });
+const playfair = Playfair_Display({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-serif" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
@@ -19,7 +19,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={cn("h-full antialiased font-sans", montserrat.variable, newsreader.variable, geistMono.variable)}
+      className={cn("h-full antialiased font-sans", montserrat.variable, playfair.variable, geistMono.variable)}
     >
       <body className="flex min-h-full flex-col">{children}</body>
     </html>
