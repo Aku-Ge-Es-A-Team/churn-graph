@@ -1,5 +1,5 @@
 # 07 -- API jalur bukti
-> ID PRD: F-08 · Prioritas: Must · Penanggung jawab: Dio (Backend & AI) · Estimasi: 1 jam-orang (PRD); total task 1,75 jam · Status: Belum dimulai
+> ID PRD: F-08 · Prioritas: Must · Penanggung jawab: Dio (Backend & AI) · Estimasi: 1 jam-orang (PRD); total task 1,75 jam · Status: Implementasi selesai dan terverifikasi (2026-10-09); menunggu review PR
 
 ## 1. Ringkasan Fitur
 - Apa: `GET /api/evidence?akun=&sinyal=` dan fungsi server `getAccountEvidence(id, kode?)` yang mengembalikan `GraphPayload` berupa induced subgraph dari `bukti_ids` sinyal (tanpa node duplikat, tiap relasi membawa `source_file`).
@@ -81,6 +81,13 @@
 - 🔁 USULAN PERUBAHAN: tidak ada.
 - Risiko: respons >2 detik pada cold start Aura/Vercel -- mitigasi: `'use cache'` + `cacheLife`, region Vercel disamakan dengan Aura (00), warm-up di gladi.
 - Risiko: induced subgraph terlalu besar (>80 node) atau memunculkan node hub -- mitigasi: ukur di T07-04; laporkan ke Tegar/Adrian bila perlu pembatasan di sisi pembentuk `bukti_ids`.
+
+- ✅ KEPUTUSAN (2026-10-09, Adrian): semua identifier, konten aplikasi, dan UI memakai bahasa Inggris; dokumentasi tetap Indonesia. Kosakata graph yang tersimpan di Aura (label `Akun`, `Sinyal`, ..., tipe relasi, kode sinyal, nama properti dataset) TIDAK diterjemahkan karena ditetapkan dokumen produk dan sudah ada di data; pemetaannya ada di `docs/glossary.md`. Tipe di `src/types/graph.ts` kini berbahasa Inggris (mis. `RiskRow`: `account`, `name`, `dashboard`, `level`, `score`, `diverges`, `renewalDays`, `annualValue`, `atRiskValue`, `p`, `topSignals`; level `Critical/High/Watch/Safe` = Kritis/Tinggi/Waspada/Aman, warna dashboard `Green/Yellow/Red` = Hijau/Kuning/Merah).
+- ✅ KEPUTUSAN (2026-10-09, Adrian): tugas milik Dio untuk F-05 s.d. F-11 dikerjakan Adrian; pembagian penanggung jawab di header diabaikan sementara.
+- ✅ HASIL: `src/server/queries/evidence.ts` (`fetchInducedSubgraph`, `fetchAccountEvidence`), `src/server/queries/index.ts` (`getAccountEvidence`, cache) dan `GET /api/evidence` di `src/app/api/evidence/route.ts`. Parameter kanonik `account` dan `signal`; `akun` dan `sinyal` dari PRD diterima sebagai alias. Respons: 200 `GraphPayload` (`nodes`, `edges`, `highlight`, `meta`), 400 parameter kosong/tidak valid, 404 `account_not_found`/`signal_not_found`, 503 `graph_unavailable` (tanpa membocorkan detail koneksi).
+- ✅ HASIL UJI: C01 memuat ≥4 `source_file` berbeda (jalur champion K017 → P01 dan FEAT-07 ← D-2025-11 ← E01); node unik; semua relasi membawa `source_file`; tanggal berupa string ISO, tanpa Integer/Date mentah; properti pembukuan internal tidak bocor; 40 akun dijawab dengan akun terlambat 133 ms (< 2 detik); akun tanpa sinyal (C02) → payload kosong (200). Tes: `tests/golden/evidence.test.ts` dan `tests/server/api/evidence-route.test.ts` (400/404/503 dengan graph di-mock).
+- ⚠️ ASUMSI: nama properti di dalam `props` node/relasi adalah kosakata graph (`mulai`, `selesai`, `status_janji`, ...) dan tidak diterjemahkan; label `label` juga kosakata graph (`Akun`, `Kontak`, ...).
+- 🔁 USULAN PERUBAHAN: `readCypher` menerima opsi `maxLimit` agar query internal tepercaya (jalur bukti, peringkat) tidak terpotong batas 200 baris milik konsol/LLM.
 
 ## 10. Definition of Done
 - [ ] Semua acceptance criteria di section 3 lolos uji di section 8
