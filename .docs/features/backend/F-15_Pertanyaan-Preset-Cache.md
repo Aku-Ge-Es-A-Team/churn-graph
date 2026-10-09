@@ -75,7 +75,7 @@
 - ⚠️ ASUMSI: Tombol preset dipasang di `/tanya` agar satu halaman dengan F-14; Rencana Teknis Langkah 10 menaruh pertanyaan preset di `/explore` -- cara validasi: keputusan tata letak dengan Tegar; keduanya boleh menampilkan komponen yang sama.
 - ⚠️ ASUMSI: Cache dibaca langsung oleh Server Component/modul server tanpa endpoint baru -- cara validasi: integrasi dengan Tegar; <1 detik karena data statis.
 - ⚠️ ASUMSI: 12 pertanyaan preset = 12 pertanyaan di `docs/questions.md` (Rencana Teknis Langkah 1); belum ada daftar final yang dikunci -- cara validasi: cek `docs/questions.md` dari 00.
-- ⛔ KONFLIK (K-A): repo memuat Prisma/Supabase (commit a5d933a), PRD §9 + Rencana Teknis §2.3 tidak memakainya -- dipakai sementara: ikuti PRD; cache berupa berkas JSON, bukan tabel `src/lib/db.ts`.
+- ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase. Cache preset berupa berkas JSON.
 - 🔁 USULAN PERUBAHAN: tambah script `package.json` untuk membuat cache preset (Rencana Teknis Langkah 4 hanya mendaftar etl, load, derive, signals, rebuild, test:golden) -- alasan: pembuatan ulang cache setelah tiap `rebuild` harus mudah diulang. Task tidak terblokir: skrip dijalankan langsung dengan `bun <path skrip>` sampai script terdaftar.
 - Risiko: cache kedaluwarsa setelah aturan/bobot berubah atau `rebuild` -- mitigasi: buat ulang cache setelah freeze J15 dan setelah `rebuild` terakhir; simpan `snapshot`/`dibuat` di tiap entri.
 - Risiko: jawaban ter-cache berisi klaim salah yang lolos validator -- mitigasi: tinjau manual setiap jawaban (T14-05).

@@ -82,7 +82,7 @@
 - ⚠️ ASUMSI: Nama properti nilai kontrak tahunan di node `:Akun` tidak disebut di sumber (sumber kebenaran: kontrak, PRD F-01) -- cara validasi: baca skema node dari 02 (F-02).
 - ⚠️ ASUMSI: Modul skoring berada di `src/server/` dengan nama file usulan `scoring.ts`; path final belum ditetapkan -- cara validasi: sepakati dengan Adrian saat F-04 mulai memakai `getSignals`.
 - ⚠️ ASUMSI: File `tests/golden/ranking.test.ts` dibuat/diisi F-05 (assertion peringkat & level), sedangkan assertion sinyal diisi F-04 -- cara validasi: sepakati pembagian file dengan Adrian.
-- ⛔ KONFLIK (K-A): repo sudah memuat Prisma (`prisma/schema.prisma`, `prisma.config.ts`, `src/lib/db.ts`, commit a5d933a) dan env `DATABASE_URL`/`SUPABASE_*`, sedangkan PRD §9 dan Rencana Teknis §2.3 menyatakan Prisma/Supabase tidak dipakai -- dipakai sementara: ikuti PRD; fitur ini hanya membaca Neo4j lewat `readCypher`, tidak menyentuh `src/lib/db.ts`.
+- ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase.
 - ⛔ KONFLIK (K-B): `RiskRow.level` di Rencana Teknis Langkah 3 = "Kritis"|"Tinggi"|"Sedang"|"Rendah", PRD = Kritis/Tinggi/Waspada/Aman -- dipakai sementara: PRD; T05-01 menyesuaikan union tipe bersama 00. Nilai p Rencana (Sedang 0,2 / Rendah 0,05) dipetakan ke Waspada/Aman.
 - 🔁 USULAN PERUBAHAN: tidak ada.
 - Risiko: golden test tidak lulus pada J8–9 karena bobot/ambang salah, atau sinyal F-04 telat -- mitigasi/fallback: kalibrasi dilakukan setelah sinyal ada; bila F-04 telat, T05-02/T05-04 tetap selesai dengan data tiruan.

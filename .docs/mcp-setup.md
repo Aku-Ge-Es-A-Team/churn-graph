@@ -113,7 +113,7 @@ Kalau ketiganya jalan tanpa error = command/args benar.
 
 **(c) Tool benar-benar terpanggil (end-to-end):**
 Minta agent sesuatu yang memicu tool:
-- Context7: *"Cari dokumentasi Prisma 7 driver adapter. use context7"* → agent memanggil
+- Context7: *"Cari dokumentasi neo4j-driver (session READ, executeRead). use context7"* → agent memanggil
   `resolve-library-id` → `query-docs` dan mengembalikan docs ter-update.
 - Playwright: *"Buka localhost:3000 dan ambil snapshot aksesibilitasnya"* → agent memanggil
   `browser_navigate` + `browser_snapshot`.

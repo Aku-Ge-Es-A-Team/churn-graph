@@ -72,7 +72,7 @@
 - ⚠️ ASUMSI: Body request `{ "query": string }` dan bentuk respons (kolom, baris, `graph` opsional) tidak ditetapkan di PRD/Rencana Teknis -- cara validasi: sepakati dengan Tegar sebelum T21-03.
 - ⚠️ ASUMSI: Kode status error (400 untuk ditolak/sintaks, status lain untuk timeout) tidak ditetapkan di sumber -- cara validasi: sepakati saat T21-02.
 - ⚠️ ASUMSI: Komponen penampil F-12 menerima `GraphPayload` ≤80 node, sedangkan batas `LIMIT` paksa F-10 belum ditetapkan; hasil lebih besar dari 80 node harus dipotong atau ditampilkan sebagai tabel -- cara validasi: uji di T21-04 setelah 11 selesai.
-- ⛔ KONFLIK (K-A): repo memuat Prisma/Supabase (commit a5d933a), PRD §9 + Rencana Teknis §2.3 tidak memakainya -- dipakai sementara: ikuti PRD; data hanya dibaca dari Neo4j via `readCypher`, `src/lib/db.ts` tidak disentuh.
+- ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase.
 - 🔁 USULAN PERUBAHAN: tidak ada.
 - Risiko: endpoint menerima query bebas di URL publik; satu password bersama dan tanpa rate limit (celah yang diakui Rencana Teknis Langkah 12) -- mitigasi: Basic Auth dari 00, session READ + deny-list + `LIMIT` + timeout 5 detik dari 09; data bersifat fiktif; fitur boleh dimatikan di produksi bila ada keraguan.
 - Risiko: query berat menghabiskan sumber daya Aura Free -- mitigasi: timeout 5 detik dan `LIMIT` paksa dari 09.

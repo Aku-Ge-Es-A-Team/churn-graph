@@ -80,7 +80,7 @@
 - ⚠️ ASUMSI: nilai `dasar` dan `confidence` untuk `SALING_KENAL` (mis. `masa_kerja_tumpang_tindih`, `interaksi_bersama`) belum tertulis. -- cara validasi: sepakati dengan Tegar saat T22-04.
 - ⚠️ ASUMSI: path route `src/app/api/graph/neighbors/route.ts` mengikuti konvensi App Router; Rencana Teknis hanya menyebut endpoint. -- cara validasi: baca docs Next.js di repo.
 - ⛔ KONFLIK: dasar relasi -- PRD F-23: "dasar relasinya (interaksi bersama)"; Rencana Teknis Langkah 6: `SALING_KENAL` = dua kontak dengan masa kerja tumpang-tindih di organisasi yang sama -- dipakai sementara: keduanya (properti `dasar` menyimpan jenisnya).
-- ⛔ KONFLIK (K-A): repo sudah punya Prisma (`prisma/schema.prisma`, `src/lib/db.ts`) dan `.env.example` berisi `DATABASE_URL`, `SUPABASE_*`; PRD §9 dan Rencana Teknis §2.3 menyatakan keduanya tidak dipakai -- dipakai sementara: hanya Neo4j; keputusan di 00.
+- ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase.
 - 🔁 USULAN PERUBAHAN: tidak ada.
 - Risiko: node akun/outlet bertetangga sangat banyak (supernode) sehingga cepat melewati 120 node -- mitigasi/fallback: batasi expand ke node kontak (sesuai AC) dan pesan jelas saat batas tercapai.
 - Risiko: fitur dipotong (pertama dalam urutan pemotongan PRD §7) -- mitigasi/fallback: viewer F-12 tetap berfungsi tanpa expand.

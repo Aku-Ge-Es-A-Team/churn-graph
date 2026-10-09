@@ -72,7 +72,7 @@
 - ⚠️ ASUMSI: Penjelasan dikirim lewat fungsi server yang dibaca Server Component `/akun/[id]` (tanpa endpoint baru), sejalan dengan Rencana Teknis Langkah 8 -- cara validasi: integrasi dengan Tegar.
 - ⚠️ ASUMSI: Z2 dan Z3 tidak didefinisikan di PRD maupun Rencana Teknis; penjelasannya mengikuti definisi final F-04 -- cara validasi: baca file F-04 (04) dan kode aturannya.
 - ⚠️ ASUMSI: Nama properti `kategori` dan nilai `permintaan_fitur` pada `:Tiket` diambil dari PRD/Rencana; perlu dicocokkan dengan skema F-02 -- cara validasi: cek `cypher/schema.cypher` dan `nodes.jsonl`.
-- ⛔ KONFLIK (K-A): repo memuat Prisma/Supabase (commit a5d933a), PRD §9 + Rencana Teknis §2.3 tidak memakainya -- dipakai sementara: ikuti PRD; semua pembacaan lewat Neo4j (`readCypher`), `src/lib/db.ts` tidak disentuh.
+- ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase.
 - 🔁 USULAN PERUBAHAN: perluas kontrak keluaran F-04 (atau runner sinyal) agar mencatat hasil pemeriksaan aturan yang TIDAK terpicu (`{akun, kode, terpicu, nilai}`) -- alasan: AC "daftar aturan yang sudah dicek beserta nilainya" tidak bisa dipenuhi dari kontrak `{akun, kode, bobot, bukti_ids, fakta, sejak}` yang hanya memuat aturan terpicu. Tanpa ini, T06-02 terblokir dan daftar hanya menampilkan kode + status.
 - Risiko: Z1 salah menangkap tiket sehingga C02 tampil berisiko atau penjelasan salah -- mitigasi: golden test F-04 untuk C02 + uji 9 tiket di file ini.
 - Risiko: pemilik FE (Tegar) belum punya panel di skeleton -- mitigasi: fixture C02 disiapkan di awal T06-03.
