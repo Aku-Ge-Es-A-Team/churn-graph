@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompactIdr, formatFullIdr } from "@/lib/ranking";
 import { checkDiscountProposal } from "@/server/queries/precedents";
-import type { DiscountPolicy, RetentionAction, RetentionCard } from "@/types/graph";
+import type { DiscountPolicy, RetentionAction, RetentionCard, RetentionJudgement } from "@/types/graph";
+
+const DISCOUNT_FIT_WARNING = 0.3;
 
 function DiscountTester({ policy }: { policy: DiscountPolicy }) {
   const [value, setValue] = useState("");
@@ -52,6 +54,11 @@ function ActionBlock({ action, card, primary }: { action: RetentionAction; card:
       <div className="flex flex-wrap items-center gap-2">
         {primary ? <Badge className="bg-foreground text-background">Recommended</Badge> : <Badge className="bg-muted text-foreground">Also consider</Badge>}
         <h3 className="font-medium">{action.title}</h3>
+        {action.urgency !== undefined ? (
+          <Badge className="bg-muted text-foreground" data-testid="jev-urgency">
+            JEV urgency {action.urgency.toFixed(1)}/3
+          </Badge>
+        ) : null}
       </div>
       <p className="text-xs text-muted-foreground">{action.rationale}</p>
       <p className="text-xs text-muted-foreground">Triggered by: {action.signalCodes.join(", ")}</p>
@@ -71,6 +78,7 @@ function ActionBlock({ action, card, primary }: { action: RetentionAction; card:
             <li key={p.decisionId} className="rounded-md border px-2 py-1 text-xs" data-precedent={p.decisionId}>
               <span className="font-medium">{p.decisionId}</span> · {p.type.replace("_", " ")} · {p.outcome} · {p.date}
               {p.value ? ` · ${p.value}` : ""}
+              {p.fit !== undefined ? ` · JEV fit ${p.fit.toFixed(2)}` : ""}
               <div className="text-muted-foreground">
                 Approved by {p.approver ? `${p.approver.name} (${p.approver.title})` : "—"}
                 {p.accountId ? ` · account ${p.accountId}` : ""}
@@ -86,6 +94,21 @@ function ActionBlock({ action, card, primary }: { action: RetentionAction; card:
   );
 }
 
+function JudgementNote({ judgement }: { judgement: RetentionJudgement }) {
+  const lowDiscountFit = judgement.discountSuitability !== null && judgement.discountSuitability < DISCOUNT_FIT_WARNING;
+  return (
+    <div className="flex flex-col gap-1 rounded-md border bg-muted/30 p-2 text-xs" data-testid="jev-note">
+      <p>
+        <b>JEV AI judgement</b>
+        {judgement.confidence !== null ? ` · first-action confidence ${Math.round(judgement.confidence * 100)}%` : ""}
+        {judgement.reordered ? " · JEV moved a different action to the top" : ""}
+      </p>
+      {judgement.needsReview ? <p className="font-medium text-destructive">Needs review: JEV was not confident about the order, so the rule order is kept.</p> : null}
+      {lowDiscountFit ? <p className="font-medium">JEV: a retention discount is not a fitting response here (suitability {judgement.discountSuitability!.toFixed(2)}); the cause is not price.</p> : null}
+    </div>
+  );
+}
+
 /** F-09: retention actions with precedent, approver, cost vs value at risk and the discount deviation check. */
 export function RetentionCardView({ card }: { card: RetentionCard }) {
   return (
@@ -97,6 +120,7 @@ export function RetentionCardView({ card }: { card: RetentionCard }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        {card.judgement ? <JudgementNote judgement={card.judgement} /> : null}
         {card.actions.length === 0 ? (
           <p className="text-sm text-muted-foreground">No action is recommended: the account is {card.level === "Safe" ? "Safe" : "without a mapped action"}.</p>
         ) : (

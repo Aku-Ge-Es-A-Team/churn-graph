@@ -5,9 +5,11 @@ import "server-only";
 import { cacheLife } from "next/cache";
 import { FOCUS_ACCOUNT_IDS, type AccountExplanation, type GraphPayload, type RetentionCard, type RiskRow, type Signal } from "../../types/graph";
 import { readCypher } from "../neo4j";
+import { getJevJudge } from "../ai/jev";
 import { fetchAccountEvidence, type EvidenceResult } from "./evidence";
 import { fetchAccountExplanation } from "./explanation";
 import { fetchRetentionCard } from "./precedents";
+import { judgeRetentionCard } from "./retention-judgement";
 import { fetchRanking, fetchSignals } from "./risk";
 import type { CypherRunner } from "./runner";
 
@@ -54,6 +56,8 @@ export async function getAccountDetail(account: string): Promise<AccountDetail |
   if (!row) return null;
   const [signals, evidence] = await Promise.all([fetchSignals(run, account), fetchAccountEvidence(run, account)]);
   if (evidence.status !== "ok") return null;
-  const [explanation, retention] = await Promise.all([fetchAccountExplanation(run, row, signals), fetchRetentionCard(run, row, signals)]);
+  const [explanation, ruleCard] = await Promise.all([fetchAccountExplanation(run, row, signals), fetchRetentionCard(run, row, signals)]);
+  // JEV AI judges the rule-based candidates; without a key or on any failure the rule-based card is returned unchanged.
+  const retention = await judgeRetentionCard(ruleCard, row, signals, getJevJudge());
   return { row, signals, evidence: evidence.payload, explanation, retention };
 }
