@@ -1,5 +1,5 @@
 # 08 -- Tindakan retensi berbasis preseden
-> ID PRD: F-09 · Prioritas: Must · Penanggung jawab: Dio (Backend & AI) · Estimasi: 2 jam-orang (PRD); total task 3,75 jam · Status: Belum dimulai
+> ID PRD: F-09 · Prioritas: Must · Penanggung jawab: Dio (Backend & AI) · Estimasi: 2 jam-orang (PRD); total task 3,75 jam · Status: Implementasi selesai dan terverifikasi (2026-10-09); menunggu review PR
 
 ## 1. Ringkasan Fitur
 - Apa: Kartu tindakan retensi per akun berisiko: jenis tindakan (dari tabel aturan kode sinyal → tindakan → tipe keputusan preseden), preseden `decision_log` beserta penyetujunya, perbandingan biaya vs rupiah berisiko, dan penanda "menyimpang dari preseden" bila usulan melewati batas (mis. diskon >15%).
@@ -84,6 +84,15 @@
 - 🔁 USULAN PERUBAHAN: tambahkan tipe kartu tindakan (jenis tindakan, preseden[], biaya, berisiko, penyimpangan) ke `src/types/graph.ts` -- alasan: Rencana Teknis hanya menyebut "kartu tindakan" tanpa tipe, padahal FE (Tegar) dan F-14 perlu kontrak yang sama; T08-06 terblokir sampai disetujui (sementara tipe lokal di `precedents.ts`).
 - Risiko: tabel aturan tidak mencakup semua kode F-04 sehingga akun berisiko tanpa tindakan -- mitigasi: T08-01 menandai kode tanpa tindakan secara eksplisit dan menampilkan "belum ada rekomendasi" bukan kartu kosong.
 - Risiko: preseden di `decision_log` tidak cocok persis dengan skenario -- mitigasi: tampilkan preseden terdekat dan jelaskan selisihnya (aturan acara penyimpangan).
+
+- ✅ KEPUTUSAN (2026-10-09, Adrian): semua identifier, konten aplikasi, dan UI memakai bahasa Inggris; dokumentasi tetap Indonesia. Kosakata graph yang tersimpan di Aura (label `Akun`, `Sinyal`, ..., tipe relasi, kode sinyal, nama properti dataset) TIDAK diterjemahkan karena ditetapkan dokumen produk dan sudah ada di data; pemetaannya ada di `docs/glossary.md`. Tipe di `src/types/graph.ts` kini berbahasa Inggris (mis. `RiskRow`: `account`, `name`, `dashboard`, `level`, `score`, `diverges`, `renewalDays`, `annualValue`, `atRiskValue`, `p`, `topSignals`; level `Critical/High/Watch/Safe` = Kritis/Tinggi/Waspada/Aman, warna dashboard `Green/Yellow/Red` = Hijau/Kuning/Merah).
+- ✅ KEPUTUSAN (2026-10-09, Adrian): tugas milik Dio untuk F-05 s.d. F-11 dikerjakan Adrian; pembagian penanggung jawab di header diabaikan sementara.
+- ✅ HASIL: `src/server/queries/precedents.ts` (tabel aturan `ACTION_FOR_SIGNAL`, `selectPrecedents`, `deriveDiscountPolicy`, `checkDiscountProposal`, `buildRetentionCard`, `fetchRetentionCard`), komponen `src/components/account/retention-card.tsx` (termasuk penguji usulan diskon) di `/akun/[id]`. Tes: `tests/golden/retention.test.ts`.
+- ✅ TABEL AKSI (kode sinyal → tindakan): bug (`TIKET_BUG_TAK_TERTAUT`, `ANOMALI_USAGE_RILIS_BUG`, `TIKET_TAK_DIREPRODUKSI`) → eskalasi bug + kompensasi (preseden D-2025-08, D-2026-05, D-2024-07, kompensasi D-2025-03); `JANJI_DILANGGAR` → pulihkan janji fitur (preseden janji yang ditepati: D-2024-05, D-2026-01, penyetuju E09); `KOMPETITOR_DISEBUT` → tinjau ancaman kompetitor sebelum diskon tambahan; `RISIKO_PEMBAYARAN` → tinjau tempo bayar (preseden D-2024-03, D-2025-10, D-2026-03); `CHAMPION_KELUAR` dan `OUTREACH_TAK_BERBALAS` → kontak tingkat eksekutif (tanpa preseden di decision_log, dinyatakan eksplisit). Akun level Safe → kartu kosong terdefinisi.
+- ✅ BATAS DISKON dari data, bukan konstanta: keputusan diskon ditolak yang alasannya menyebut batas ("Di atas batas 15%") = D-2025-02 → batas 15%. C01 sudah 15% sehingga headroom 0: usulan 20% → "Deviates from precedent D-2025-02 … written justification is required"; 15% → tidak menyimpang.
+- ✅ BIAYA vs RISIKO: kompensasi = nilai tahunan / 12. C03: Rp 5.670.000 vs Rp 27.216.000 berisiko (Estimasi), C03 mendapat eskalasi bug + kompensasi, bukan diskon.
+- ✅ T08-06 diterapkan sebagai 🔁: tipe kartu (`RetentionCard`, `RetentionAction`, `DecisionPrecedent`, `DiscountPolicy`, `DeviationCheck`) dipromosikan ke `src/types/graph.ts`.
+- ⚠️ ASUMSI: biaya diskon = 1% nilai tahunan per poin persentase diskon tambahan; pemetaan tindakan untuk `CHAMPION_KELUAR`/`OUTREACH_TAK_BERBALAS`/`RISIKO_PEMBAYARAN` disusun dari tipe keputusan di decision_log, belum dikonfirmasi tim; kartu FE dibangun di sini (tanpa pemilik FE terpisah).
 
 ## 10. Definition of Done
 - [ ] Semua acceptance criteria di section 3 lolos uji di section 8
