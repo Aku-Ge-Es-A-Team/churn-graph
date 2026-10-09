@@ -1,8 +1,8 @@
 # 01 -- Pipeline ETL + rekonsiliasi
-> ID PRD: F-01 · Prioritas: Must · Penanggung jawab: Adrian (Data Graph) · Estimasi: 3,5 jam-orang (PRD) · Status: Belum dimulai
+> ID PRD: F-01 · Prioritas: Must · Penanggung jawab: Adrian (Data Graph) · Estimasi: 3,5 jam-orang (PRD) · Status: Implementasi selesai dan terverifikasi lokal (typecheck, lint, bun test, next build); menunggu review PR
 
 ## 1. Ringkasan Fitur
-- Apa: skrip `bun run etl` (`scripts/etl/index.ts`) membaca 12 file wajib, memvalidasi dengan `zod`, membersihkan dan merekonsiliasi nilai, mengagregasi usage harian menjadi `UsageBulan`, lalu menulis `data/build/nodes.jsonl`, `data/build/edges.jsonl`, dan `data/build/quality-report.json`.
+- Apa: skrip `bun run etl` (`scripts/etl/index.ts`) membaca 14 berkas (13 wajib Brief §3.1 + `crm_deals`, lihat section 9), memvalidasi dengan `zod`, membersihkan dan merekonsiliasi nilai, mengagregasi usage harian menjadi `UsageBulan`, lalu menulis `data/build/nodes.jsonl`, `data/build/edges.jsonl`, dan `data/build/quality-report.json`.
 - Untuk siapa: Laras (Head of CS) -- peringkat risiko tidak dibangun di atas data yang salah; Bima (AM) -- setiap bukti bisa dilacak ke baris asal.
 - Peran di ★ jalur demo utama: bukan bagian langsung; fondasi data untuk langkah 1–6 (PRD §9: F-01–F-04 melayani jalur demo secara tidak langsung).
 
@@ -63,14 +63,14 @@
 ## 6. Breakdown Task Implementasi
 | ID | Task | Layer | Estimasi (jam) | Bergantung pada | Output terverifikasi |
 | --- | --- | --- | --- | --- | --- |
-| T01-01 | Salin 12 file wajib dari `dump/dataset_kasirnusa` ke `data/raw/` (read-only; `decision_log.xlsx` tidak disalin). | BE | 0,25 | 00 (repo + Bun siap) | `data/raw/` berisi 12 file; jumlah baris per file dicatat di komentar header `scripts/etl/index.ts`. |
-| T01-02 | Tahap extract + skema `zod` untuk 12 file (`papaparse`, `dynamicTyping: false`); baris gagal ditulis ke `quality-report.json` dengan alasan. Pasang dependensi dengan `bun add --exact papaparse zod` bila belum ada. | BE | 1,0 | T01-01 | `bun run etl` (tahap extract) melaporkan per file: baris sumber = lolos + gagal; tidak ada baris hilang tanpa alasan. |
-| T01-03 | Cleaning + rekonsiliasi: tanggal, `mode_offline`, `transaksi_offline_tersinkron` null, versi sebagai string, `nilai` menurut `tipe`, `batas_outlet_paket`; konflik CRM vs kontrak diselesaikan dengan nilai kontrak dan dicatat. | BE | 0,75 | T01-02 | Tes unit `bun test` untuk tiap normalizer lulus; `quality-report.json` memuat daftar konflik CRM-vs-kontrak beserta nilai yang dipakai. |
-| T01-04 | Tandai `template=true` (isi identik ≥5 kali); bangun indeks email (exact-match ke Kontak/Karyawan) + baca `data/aliases.csv` bila ada; email tak terselesaikan dicatat di `quality-report.json`. | BE | 0,5 | T01-02 | Jumlah interaksi `template=true` = 318 dari 350; daftar email tak terselesaikan muncul di laporan (masukan F-16). |
-| T01-05 | Agregasi `product_usage_daily` → `UsageBulan` (620 outlet × 12 bulan) lengkap dengan baseline dan delta; versi aplikasi per outlet dari usage. | BE | 0,75 | T01-02 | `nodes.jsonl` berisi ±7.440 node `UsageBulan`; outlet T0531/T0600/T0636 tidak punya versi 4.12 dari sisi usage. |
-| T01-06 | Emit `nodes.jsonl` + `edges.jsonl` (node inti, relasi fakta, label `:Entitas`, `sumber` untuk `GNode`, `source_file` + `source_id`); cek keunikan ID global. | BE | 1,0 | T01-03, T01-04, T01-05 | Setiap record punya `source_file` dan `source_id`; ID ganda menghentikan ETL dengan pesan error; dua kali run → JSONL identik. |
-| T01-07 | Finalisasi `quality-report.json` (per file: sumber/lolos/gagal, konflik, template, email tak terselesaikan, anomali data) + hitung jumlah node per label. | BE | 0,5 | T01-06 | `quality-report.json` terbaca manusia dan memuat jumlah node per label yang akan dibandingkan di 02. |
-| T01-08 | Tes: normalizer + assertion hitungan (`tests/golden/etl.test.ts`, ⚠️ nama berkas asumsi): UsageBulan ±7.440, template 318, kasus null offline, ID ganda → error. | Test | 0,5 | T01-07 | `bun test tests/golden/etl.test.ts` hijau; satu tes jalur error (ID ganda / baris gagal zod) lulus. |
+$1 **Status: selesai** -- 14 berkas ada di `data/raw/`; jumlah baris per berkas tercatat di header `scripts/etl/index.ts`. |
+$1 **Status: selesai** -- `extract.ts` + `schemas.ts`; 14 berkas: sumber = lolos + gagal, 0 gagal pada data asli (226.300 baris usage diproses streaming). |
+$1 **Status: selesai** -- `clean.ts`; 0 konflik akun↔kontrak, 7 selisih deal↔kontrak (semua terjelaskan diskon); tes di `tests/etl/clean.test.ts`. |
+$1 **Status: selesai** -- 318/350 template; 1 email tak terselesaikan (`rina.hapsari@kopilintas.co.id`, 6 interaksi). |
+$1 **Status: selesai** -- 7.440 `UsageBulan`; T0531/T0600/T0636 terdeteksi (tiket 4.12, outlet offline tidak pernah 4.12 di usage); C03 offline 8.056 → 926 → 887. |
+$1 **Status: selesai** -- 9.386 node, 10.266 relasi fakta; ID unik; dua run → berkas identik (diuji). |
+$1 **Status: selesai** -- `quality-report.json` memuat per-berkas, konflik, template, email, versi tiket vs usage, champion usang, kecukupan jalur bukti. |
+$1 **Status: selesai** -- `tests/golden/etl.test.ts` (19 tes) + `tests/etl/clean.test.ts` (22 tes); jalur error: baris rusak, kolom hilang, berkas hilang, ID ganda. |
 | | **Total 5,25 jam (estimasi PRD: 3,5 jam)** -- selisih +50%, lihat ⚠️ ASUMSI di section 9. | | | | |
 
 ## 7. Dependensi
@@ -103,6 +103,14 @@
 - Risiko: data kotor yang belum terdeteksi (artefak sintetis X6) memecah validasi -- mitigasi/fallback: `zod` longgar untuk field informasional + catat ke laporan, jangan membuang baris.
 - Risiko: memori laptop sempit (±1,8 GB bebas, Rencana Teknis §3.1 Langkah 13) saat memproses 226.300 baris usage -- mitigasi/fallback: agregasi streaming per outlet-bulan (file terbesar 7,7 MB, jadi risiko rendah).
 - Risiko: tipe `papaparse` memerlukan paket tipe terpisah -- mitigasi/fallback: bila typecheck gagal, ajukan 🔁 USULAN PERUBAHAN (jangan menambah paket diam-diam).
+
+- ✅ KEPUTUSAN (2026-10-09, Adrian): (1) bentuk keluaran ETL mengikuti Rencana Teknis Langkah 3 (`key`, `sumber`, `from`/`to`, `source_file`, `source_id`) dan didefinisikan sendiri di `scripts/etl/types.ts`; draf kontrak Dio di `src/types/graph.ts` TIDAK dipakai untuk keluaran ETL (adaptasi ke kontrak itu menjadi urusan loader/F-02). (2) 14 berkas diproses: 13 wajib Brief §3.1 + `crm_deals`; `feature_usage_monthly.csv` dan `decision_log.xlsx` dilewati (menutup K1). (3) `interactions.json` dibaca sebagai JSON Lines (K2); penanda template bernama `template` (K3). (4) Parsing CSV dengan `papaparse` 5.7.0 yang sudah terpasang.
+- 🔁 USULAN PERUBAHAN: (a) `scripts/etl/papaparse.d.ts` -- deklarasi tipe minimal sebagai pengganti `@types/papaparse` (tanpa dependensi baru); (b) `tests/etl/clean.test.ts` selain `tests/golden/etl.test.ts`; (c) relasi `Akun-[:MEMBUKA_TIKET]->Tiket` (props `tanpa_outlet: true`) untuk 3 tiket tanpa `outlet_id` -- tabel relasi hanya menyebut Outlet/Kontak sebagai asal; tanpa ini ketiga tiket integrasi C01 terisolasi dari akunnya; (d) env opsional `SNAPSHOT_DATE` (default 2026-10-01) untuk menentukan champion usang -- dokumen menyebut ETL tanpa env var.
+- ⚠️ ASUMSI: baseline `UsageBulan` = rata-rata HARIAN transaksi Okt–Des 2025 per outlet (bukan jumlah bulanan, karena panjang bulan beda); `delta_pct` = (rata harian bulan itu − baseline) / baseline × 100; offline dihitung sama dari hari yang berisi angka. Ambang anomali 25% tetap milik F-03. -- cara validasi: F-03 T03-02 mengonfirmasi −34% s.d. −36% (sudah cocok untuk 6 outlet C03).
+- ⚠️ ASUMSI: ID turunan `ORG-<slug nama>` (13 organisasi) dan `KOMP-<slug nama>` (KasirPro); "PT Teknologi Kasir Prima" = KasirPro masih inferensi dan TIDAK digabung. `sumber`: `releases`, `features`, `bugs` → `tiket` (union tidak punya nilai khusus produk). `GEdge.key` = `TIPE:dari->ke` + pembeda (`mulai` untuk riwayat jabatan, `peran` untuk TERLIBAT_DI); kunci ganda menghentikan ETL.
+- ⚠️ ASUMSI: `MEMBALAS` tidak di-emit (milik F-03); `membalas_id` disimpan sebagai properti Interaksi. `CHAMPION_DARI {klaim:'crm'}` apa adanya; pertentangannya dengan riwayat kerja ditandai di `champion_crm_usang` (bahan R1 di F-04), bukan dikoreksi.
+- Nama berkas interaksi: dataset resmi memakai `interactions.jsonl` (sama dengan README); ETL membaca `interactions.jsonl` lebih dulu dan menerima `interactions.json` sebagai cadangan (isi keduanya identik pada dataset ini). Nama yang dipakai tercatat di `source_file` setiap node/relasi interaksi.
+- Fakta hasil run (menggantikan angka lama di dokumen): selisih deal↔kontrak = 7 (bukan 8 seperti perkiraan awal); 31 tiket mencatat versi yang tidak pernah dipakai outletnya di usage, 3 di antaranya di outlet offline di luar C03/C05 (T0531, T0600, T0636); 99 tiket lain berbeda versi pada tanggal tiket (rollout bertahap) dan hanya dihitung.
 
 ## 10. Definition of Done
 - [ ] Semua acceptance criteria di section 3 lolos uji di section 8
