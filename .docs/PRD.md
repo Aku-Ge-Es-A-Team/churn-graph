@@ -418,7 +418,7 @@ Jam relatif J+0 = mulai coding. Durasi rencana 18 jam (⚠️ ASUMSI A2). Featur
 | A5 | Tidak ada checkpoint panitia, mentoring, atau batas submission selain demo akhir. | Blok kerja terpotong agenda. | Tanya panitia. | J0 |
 | A6 | Durasi pitch/demo tidak diketahui; perangkat laptop tim + URL Vercel. | Skrip demo terlalu panjang atau pendek. | Tanya panitia. | J8 |
 | A7 | URL publik tidak diwajibkan; deploy dilakukan untuk ketahanan demo. | Bila wajib, deploy menjadi Must. | Baca ulang aturan / tanya panitia. | J2 |
-| A8 | Tim punya API key LLM dengan tool calling; provider belum ditetapkan. | F-14 gugur, sehingga F-15 + F-22 menjadi jalur menjawab juri. | Spike tool call di J0,5–2. | J2 |
+| A8 | Tim punya API key LLM dengan tool calling; provider = endpoint OpenAI-compatible 9router (keputusan 2026-10-09; spike T00-12 lulus). | F-14 gugur, sehingga F-15 + F-22 menjadi jalur menjawab juri. | Spike tool call di J0,5–2. | J2 |
 | A9 | Batas AuraDB Free 200 ribu node / 400 ribu relasi (belum dicek di halaman resmi). | Load gagal; agregasi harus lebih kasar. | Cek konsol Aura saat membuat instance. | J2 |
 | A10 | Tanpa anggaran; semua layanan memakai tier gratis. | Bila kuota LLM habis, F-14 dan F-17 terhambat. | Cek kuota akun LLM dan TypeSafe. | J2 |
 | A11 | Keahlian Dio tidak tersurat; inferensi lemah bahwa ia familier Python, sedangkan stack tim TypeScript/Bun. | Backend B lebih lambat. | Tanya Dio; bila perlu, D atau F pair di F-14. | J0 |
@@ -445,7 +445,7 @@ Nomor A21 sengaja tidak dipakai.
 
 **Pertanyaan yang harus dijawab sebelum coding:**
 1. Jam selesai resmi, jam demo, dan durasi pitch? (A2, A5, A6)
-2. Provider LLM apa, dan apakah API key sudah ada dengan kuota cukup? (A8, A10)
+2. ~~Provider LLM apa, dan apakah API key sudah ada dengan kuota cukup?~~ Terjawab 2026-10-09: endpoint OpenAI-compatible 9router milik sendiri; kuota (A10) belum diverifikasi.
 3. Kamus gejala R3 mana yang dipakai, dan berapa angka tiket yang dikunci di golden test (7+4 atau 8+6)?
 4. Apakah pemetaan S1–S8 / Z1–Z3 / A7 sesuai maksud Dio? (A13)
 5. Siapa yang memegang pitch dan presentasi, dan apakah approval manusia dinilai (menentukan nasib F-25)?

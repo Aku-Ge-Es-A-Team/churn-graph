@@ -78,7 +78,7 @@
 - ⚠️ ASUMSI: Teks `jawaban` bebas dapat memuat klaim yang tidak tercantum di `klaim[]`; validator hanya memeriksa `klaim[]` -- cara validasi: F-14 merender jawaban dari klaim lolos (lihat 13, T13-05) dan diuji pada drill.
 - ⚠️ ASUMSI: Deny-list regex dapat memberi false positive bila kata terlarang muncul dalam literal string (mis. `'set'`) -- cara validasi: uji di T09-03; false positive diterima karena lebih aman.
 - ⚠️ ASUMSI: Lokasi berkas uji di luar `tests/golden/` belum ditetapkan -- cara validasi: sepakati dengan Adrian agar `bun test` menjalankan semuanya.
-- ⛔ KONFLIK (K-A): repo memuat Prisma/Supabase (commit a5d933a), PRD §9 + Rencana Teknis §2.3 tidak memakainya -- dipakai sementara: ikuti PRD; seluruh akses data lewat `readCypher` ke Neo4j, `src/lib/db.ts` tidak dipakai.
+- ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase.
 - 🔁 USULAN PERUBAHAN: tambahkan field opsional `kutipan[]` pada tiap klaim di kontrak `{ jawaban, klaim[] }` -- alasan: validasi substring menjadi deterministik, tidak bergantung pada parsing tanda petik di `klaim.teks`. Kontrak dimiliki 13 (F-14); sementara memakai ekstraksi tanda petik.
 - Risiko: validator terlalu ketat sehingga menurunkan jumlah preset yang terjawab (gerbang J12 ≥6/12) -- mitigasi: log alasan pembuangan, longgarkan normalisasi spasi bila sah.
 - Risiko: deny-list tidak menangkap semua bentuk tulis -- mitigasi: lapis kedua session READ di server; `/api/cypher` juga berada di belakang Basic Auth (00).

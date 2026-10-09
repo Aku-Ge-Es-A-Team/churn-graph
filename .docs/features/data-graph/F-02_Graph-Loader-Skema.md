@@ -84,7 +84,7 @@
 - ⚠️ ASUMSI: sebelum 03/04 ada, `rebuild` hanya `etl` + `load`; idempotensi penuh (termasuk `derive` dan `signals`) diuji ulang di 03 dan 04. -- cara validasi: ulangi tes dua kali rebuild setelah tiap fitur hilir bergabung.
 - ⚠️ ASUMSI: properti provenance pada node/relasi turunan memakai `source_file` = berkas aturan (mis. `cypher/derive/kandidat_bug412.cypher`) dan `source_id` = ID elemen turunan. -- cara validasi: sepakati dengan 03/04 sebelum diimplementasi.
 - ⚠️ ASUMSI: `neo4j-driver` berjalan di Bun (Rencana Teknis: dukungan Bun tidak ditemukan di dokumentasi). -- cara validasi: jalankan `bun run load` di J4; fallback jalankan skrip yang sama dengan Node 24.
-- ⛔ KONFLIK (K-A): repo sudah punya Prisma (`prisma/schema.prisma`, `prisma.config.ts`, `src/lib/db.ts`; commit a5d933a) dan `.env.example` berisi `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `SUPABASE_*`, `CONTEXT7_API_KEY`; PRD §9 dan Rencana Teknis §2.3 menyatakan Prisma/Supabase tidak dipakai -- dipakai sementara: loader hanya Neo4j; file Prisma tidak disentuh (keputusan tim di 00).
+- ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase.
 - 🔁 USULAN PERUBAHAN: tidak ada.
 - Risiko: `MERGE` menggabungkan ID ganda secara diam-diam (Rencana menyebut "tabrakan ID langsung gagal saat load", padahal `MERGE` tidak gagal) -- mitigasi/fallback: cek ID ganda di ETL (01, T01-06) + tes hitungan per label (T02-04).
 - Risiko: rebuild bersifat destruktif (`DETACH DELETE` seluruh graph) -- mitigasi/fallback: pengaman T02-03; hanya menunjuk instance milik tim; data bisa dibangun ulang dari `data/build/`.

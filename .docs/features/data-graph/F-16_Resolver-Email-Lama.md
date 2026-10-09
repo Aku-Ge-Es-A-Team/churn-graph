@@ -76,7 +76,7 @@
 - ⚠️ ASUMSI: pola alamat lama dibentuk dari nama kontak + domain organisasi lama (contoh `rina.hapsari@kopilintas.co.id`); variasi lain di dataset belum diketahui. -- cara validasi: inventaris T15-01.
 - ⚠️ ASUMSI: `confidence` berskala 0–1 seperti `0.8` di contoh `KANDIDAT_DISEBABKAN_OLEH`. -- cara validasi: sepakati dengan 03.
 - ⚠️ ASUMSI: `TERLIBAT_DI` yang dibentuk dari email teresolusi memakai `peran` yang sama dengan relasi fakta (pengirim/penerima/peserta). -- cara validasi: cek konsistensi dengan F-01.
-- ⛔ KONFLIK (K-A): repo sudah punya Prisma (`prisma/schema.prisma`, `src/lib/db.ts`) dan `.env.example` berisi `DATABASE_URL`, `SUPABASE_*`; PRD §9 dan Rencana Teknis §2.3 menyatakan keduanya tidak dipakai -- dipakai sementara: tidak memakai Prisma/Supabase; keputusan di 00.
+- ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase.
 - 🔁 USULAN PERUBAHAN: tambahkan label node alamat email (usul: `:Email`, `id` = alamat huruf kecil) ke daftar node Rencana Teknis Langkah 3 -- alasan: tabel relasi menyebut `ALAMAT_EMAIL_DARI` "Email lama → Kontak" tetapi label node asalnya tidak ditetapkan di Rencana Teknis maupun daftar label manifest. Task terblokir: T15-02, T15-04.
 - Risiko: resolver menebak salah kontak -- mitigasi/fallback: ambigu masuk `aliases.csv`, tidak ditebak; `confidence` ditampilkan.
 - Risiko: jadwal mepet -- mitigasi/fallback: fitur dipotong dan `aliases.csv` diisi manual (PRD §5); C01 tetap terdeteksi dari CRM + riwayat jabatan (Rencana Teknis §3.6).

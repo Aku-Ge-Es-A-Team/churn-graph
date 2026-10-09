@@ -76,7 +76,7 @@
 - ⚠️ ASUMSI: Path file route `src/app/api/evidence/route.ts` dan kode status 400/404 tidak ditetapkan di sumber -- cara validasi: sepakati dengan Tegar saat integrasi.
 - ⚠️ ASUMSI: `src/server/neo4j.ts` dengan `readCypher` dasar sudah dibuat di 00 (karena `/health` perlu `RETURN 1`); hardening (LIMIT, timeout, deny-list) selesai di 09 (F-10). Karena 09 bernomor lebih besar, file ini memakai versi dasar dahulu -- cara validasi: cek 00 sebelum memulai T07-01.
 - ⚠️ ASUMSI: API tidak memotong jumlah node; batas ≤80 node adalah tanggung jawab render F-12, tetapi jalur bukti yang >80 node perlu dilaporkan -- cara validasi: ukur ukuran payload 40 akun di T07-04.
-- ⛔ KONFLIK (K-A): repo memuat Prisma/Supabase (commit a5d933a), PRD §9 + Rencana Teknis §2.3 tidak memakainya -- dipakai sementara: ikuti PRD; semua data dibaca dari Neo4j, `src/lib/db.ts` tidak disentuh.
+- ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase.
 - ⛔ KONFLIK (K-C): PRD F-08 menyebut `GET /api/evidence?akun=&sinyal=`; Rencana Teknis Langkah 8 memakai fungsi server `getAccountEvidence(id, kode?)` yang dibaca langsung Server Component tanpa REST -- dipakai sementara: acceptance criteria mengikuti PRD (endpoint dibuat); fungsi server tetap menjadi implementasi di baliknya dan dipakai langsung oleh Server Component `/akun/[id]`.
 - 🔁 USULAN PERUBAHAN: tidak ada.
 - Risiko: respons >2 detik pada cold start Aura/Vercel -- mitigasi: `'use cache'` + `cacheLife`, region Vercel disamakan dengan Aura (00), warm-up di gladi.

@@ -8,9 +8,11 @@ const neo4jSchema = z.object({
   NEO4J_DATABASE: z.string().min(1),
 });
 
+// Provider LLM = endpoint OpenAI-compatible 9router (keputusan final). Lihat src/server/ai/provider.ts.
 const llmSchema = z.object({
-  GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1),
-  LLM_MODEL: z.string().min(1),
+  LLM_BASE_URL: z.url(), // mis. https://host/v1 (tanpa /chat/completions)
+  LLM_API_KEY: z.string().min(1),
+  LLM_MODEL: z.string().min(1), // id persis dari GET {LLM_BASE_URL}/models
 });
 
 function parse<T extends z.ZodType>(schema: T, group: string): z.infer<T> {

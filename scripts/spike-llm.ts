@@ -1,69 +1,50 @@
-// Spike F-14: buktikan 1 tool call Gemini -> Neo4j berhasil end-to-end dan ukur latensi.
-// Jalankan: bun run scripts/spike-llm.ts
+// SPIKE T00-12 -- skrip sementara, BUKAN bagian aplikasi (hapus/abaikan setelah A8 tervalidasi).
+// Tujuan: membuktikan satu tool call lewat Vercel AI SDK ke endpoint OpenAI-compatible 9router,
+// memakai klien yang sama dengan aplikasi (src/server/ai/provider.ts).
+// Jalankan: bun scripts/spike-llm.ts   (Bun memuat .env.local otomatis)
+// Env: LLM_BASE_URL, LLM_API_KEY, LLM_MODEL (lihat .env.example).
 import { generateText, isStepCount, tool } from "ai";
-import { createGoogle } from "@ai-sdk/google";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
-import { llmEnv } from "../src/server/env";
-import { closeDriver, readCypher } from "../src/server/neo4j";
+import { getLlmModel } from "../src/server/ai/provider";
 
-const AKUN = "C01";
-const RUNS = 5;
-const PROMPT = `Berapa jumlah data untuk akun ${AKUN}?`;
-
-const hitungAkun = tool({
-  description: "Menghitung jumlah node di graph yang terhubung langsung dengan ID akun pelanggan (mis. C01).",
-  inputSchema: z.object({ akun: z.string().describe("ID akun, contoh: C01") }),
-  execute: async ({ akun }) => {
-    // Graph masih kosong pun aman: hasilnya 0.
-    const [row] = await readCypher<{ jumlah: number }>(
-      "OPTIONAL MATCH (a {id: $akun})--(n) RETURN count(n) AS jumlah",
-      { akun },
-    );
-    return { akun, jumlah: row?.jumlah ?? 0 };
-  },
-});
-
-type Row = { percobaan: number; toolDipanggil: string; argumenBenar: string; latensiMs: number; error: string };
-
-const env = llmEnv();
-const model = createGoogle({ apiKey: env.GOOGLE_GENERATIVE_AI_API_KEY })(env.LLM_MODEL);
-const rows: Row[] = [];
-
-for (let i = 1; i <= RUNS; i++) {
-  const t0 = performance.now();
-  const row: Row = { percobaan: i, toolDipanggil: "tidak", argumenBenar: "tidak", latensiMs: 0, error: "-" };
-  try {
-    const { steps, text } = await generateText({
-      model,
-      tools: { hitungAkun },
-      stopWhen: isStepCount(3),
-      prompt: PROMPT,
-    });
-    const call = steps.flatMap((s) => s.toolCalls).find((c) => c.toolName === "hitungAkun");
-    const toolError = steps.flatMap((s) => s.content).find((p) => p.type === "tool-error");
-    row.toolDipanggil = call ? "ya" : "tidak";
-    row.argumenBenar = (call?.input as { akun?: string } | undefined)?.akun === AKUN ? "ya" : "tidak";
-    if (toolError) row.error = "tool-error";
-    console.log(`#${i} jawaban: ${text.replace(/\s+/g, " ").slice(0, 120)}`);
-  } catch (err) {
-    // Nama + potongan pesan saja; API key dikirim via header, tidak ada di pesan.
-    row.error = err instanceof Error ? `${err.name}: ${err.message.slice(0, 80)}` : "unknown";
-  }
-  row.latensiMs = Math.round(performance.now() - t0);
-  rows.push(row);
+let model: ReturnType<typeof getLlmModel>;
+try {
+  model = getLlmModel();
+} catch (error) {
+  console.error(String((error as Error).message));
+  process.exit(2);
 }
 
-console.table(rows);
-const ok = rows.filter((r) => r.toolDipanggil === "ya" && r.argumenBenar === "ya" && r.error === "-");
-const lat = rows.map((r) => r.latensiMs);
-console.table([
-  {
-    model: env.LLM_MODEL,
-    sukses: `${ok.length}/${RUNS}`,
-    successRate: `${Math.round((ok.length / RUNS) * 100)}%`,
-    latensiRataMs: Math.round(lat.reduce((a, b) => a + b, 0) / RUNS),
-    latensiMaksMs: Math.max(...lat),
-  },
-]);
+// Nonce acak: model tidak mungkin menebaknya, jadi muncul di jawaban hanya bila tool benar-benar dipanggil dan hasilnya kembali.
+const nonce = randomBytes(4).toString("hex");
 
-await closeDriver();
+try {
+  const result = await generateText({
+    model,
+    tools: {
+      ambil_kode_verifikasi: tool({
+        description: "Mengambil kode verifikasi sesi saat ini. Wajib dipanggil; kode tidak bisa ditebak.",
+        inputSchema: z.object({ topik: z.string().describe("Topik singkat, bebas diisi") }),
+        execute: async ({ topik }) => ({ topik, kode: nonce }),
+      }),
+    },
+    stopWhen: isStepCount(3),
+    prompt: "Panggil tool ambil_kode_verifikasi dengan topik 'spike', lalu tulis kode yang dikembalikan tool dalam satu kalimat.",
+  });
+
+  const calls = result.steps.flatMap((step) => step.toolCalls);
+  const results = result.steps.flatMap((step) => step.toolResults);
+  console.log("tool dipanggil :", calls.map((c) => `${c.toolName}(${JSON.stringify(c.input)})`).join(", ") || "(tidak ada)");
+  console.log("hasil tool     :", results.map((r) => JSON.stringify(r.output)).join(", ") || "(tidak ada)");
+  console.log("jawaban model  :", result.text.trim());
+
+  const ok = calls.length > 0 && result.text.includes(nonce);
+  console.log(ok ? "SPIKE LULUS: tool dipanggil dan hasilnya kembali ke model." : "SPIKE GAGAL: tool tidak dipanggil atau hasilnya tidak muncul di jawaban (A8 runtuh bila konsisten).");
+  process.exit(ok ? 0 : 1);
+} catch (error) {
+  // Hanya status/pesan; header (berisi API key) tidak pernah dicetak.
+  const e = error as { name?: string; statusCode?: number; message?: string };
+  console.error(`SPIKE ERROR: ${e.name ?? "Error"}${e.statusCode ? ` HTTP ${e.statusCode}` : ""} -- ${String(e.message).slice(0, 300)}`);
+  process.exit(1);
+}

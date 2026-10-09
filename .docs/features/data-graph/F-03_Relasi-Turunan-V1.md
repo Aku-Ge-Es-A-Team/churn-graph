@@ -84,7 +84,7 @@
 - ⚠️ ASUMSI: penurunan −34 s.d. −36% dihitung terhadap rata-rata `jumlah_transaksi`/`transaksi_offline_tersinkron` per outlet pada jendela Agu–Sep vs Okt–Des; metrik pasti belum tertulis. -- cara validasi: cocokkan dengan Brief §4 (rentang −34 s.d. −36%); selisih berarti metrik/jendela salah.
 - ⛔ KONFLIK (K-D): PRD F-03 menaruh `KANDIDAT_DISEBABKAN_OLEH` di v1; Rencana Teknis §3.4 (F04) menaruhnya di "lanjutan" -- dipakai sementara: v1 di fitur ini (PRD).
 - ⛔ KONFLIK: jumlah tiket kandidat -- Rencana Teknis Langkah 6 dan PRD §1: 14 tiket (C03: 8, C05: 6); versi Tegar: 7 + 4 (PRD §8 pertanyaan 3 belum dijawab) -- dipakai sementara: 14, disimpan sebagai konstanta tunggal di tes sehingga mudah diganti.
-- ⛔ KONFLIK (K-A): repo sudah punya Prisma (`prisma/schema.prisma`, `src/lib/db.ts`) dan `.env.example` berisi `DATABASE_URL`, `SUPABASE_*`; PRD §9 dan Rencana Teknis §2.3 menyatakan keduanya tidak dipakai -- dipakai sementara: hanya Neo4j; keputusan file Prisma ada di 00.
+- ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase.
 - 🔁 USULAN PERUBAHAN: tidak ada.
 - Risiko: kamus gejala terlalu longgar/ketat sehingga jumlah kandidat meleset dari 14 -- mitigasi/fallback: ambil kata dari judul tiket nyata; bila beda, cek tanggal tiket terhadap `MENJALANKAN_VERSI.sejak` (Rencana Teknis Langkah 6).
 - Risiko: gejala sama tercatat sebagai `permintaan_fitur` (Z1 di 04 mengecualikan kategori ini dari sinyal negatif) -- mitigasi/fallback: kategori tidak dipakai sebagai filter di sini; Z1 menyaring di sisi sinyal.

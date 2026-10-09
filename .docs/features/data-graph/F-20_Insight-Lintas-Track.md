@@ -79,7 +79,7 @@
 - ⚠️ ASUMSI: sumber "rencana ekspansi" C02 (membuka 6 cabang, PRD §1) berasal dari teks interaksi/data CRM; label node `:Deal` dan field nilai deal serta properti `batas_outlet_paket` mengikuti nama di Rencana Teknis yang belum diverifikasi. -- cara validasi: periksa data C02/C06 di T19-03.
 - ⚠️ ASUMSI: "19 outlet" konsisten dengan 19 outlet kontrol F-18 (offline yang tidak pernah memakai 4.12). -- cara validasi: bandingkan hitungan T19-02 dengan 17 (F-18).
 - ⛔ KONFLIK: PRD F-20 memuat 3 insight; Rencana Teknis F15 memuat 4 query (tambahan: P03 meminta referensi apotek padahal C03 terdampak bug) -- dipakai sementara: PRD (3 insight); query keempat tidak dikerjakan.
-- ⛔ KONFLIK (K-A): repo sudah punya Prisma (`prisma/schema.prisma`, `src/lib/db.ts`) dan `.env.example` berisi `DATABASE_URL`, `SUPABASE_*`; PRD §9 dan Rencana Teknis §2.3 menyatakan keduanya tidak dipakai -- dipakai sementara: hanya Neo4j; keputusan di 00.
+- ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase.
 - 🔁 USULAN PERUBAHAN: tidak ada.
 - Risiko: data deal/P01 tidak sesuai ekspektasi -- mitigasi/fallback: ukur lebih awal; bila data kurang, kartu menampilkan kosong yang jelas.
 - Risiko: fitur dipotong (urutan pemotongan PRD §7: F-20 setelah F-21) -- mitigasi/fallback: insight tetap bisa dijawab lewat Tanya Graph (13/F-14) dan konsol Cypher.

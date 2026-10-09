@@ -110,7 +110,7 @@ Kode cadangan (ditetapkan di sini, diimplementasikan file lain, tidak dibuat ole
 - ⛔ KONFLIK (K-D): PRD menaruh `KANDIDAT_DISEBABKAN_OLEH` di F-03 v1; Rencana Teknis menaruhnya di "lanjutan" -- dipakai sementara: PRD; aturan 6 bergantung padanya.
 - ⛔ KONFLIK: kontrak output -- PRD: `{akun, kode, bobot, bukti_ids, fakta, sejak}`; Rencana Teknis Langkah 7: tanpa `sejak` -- dipakai sementara: PRD (dengan `sejak`, dipakai F-19).
 - ⛔ KONFLIK: jumlah tiket kandidat R3 -- Rencana Teknis/PRD §1: 14 (C03 8 + C05 6); versi Tegar: 7 + 4 (PRD §8 pertanyaan 3) -- dipakai sementara: 14; assertion jumlah memakai konstanta yang sama dengan 03.
-- ⛔ KONFLIK (K-A): repo sudah punya Prisma (`prisma/schema.prisma`, `src/lib/db.ts`) dan `.env.example` berisi `DATABASE_URL`, `SUPABASE_*`; PRD §9 dan Rencana Teknis §2.3 menyatakan keduanya tidak dipakai -- dipakai sementara: hanya Neo4j; keputusan di 00.
+- ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase.
 - 🔁 USULAN PERUBAHAN: tidak ada.
 - Risiko: golden test tidak lulus di J8 (aturan generik salah tangkap, kamus R3 belum disepakati) -- mitigasi/fallback: kunci kamus di J0,5, tulis golden sebelum aturan (T04-01); gerbang J8: D berhenti di F-03 dan F-17 batal.
 - Risiko: aturan terlalu longgar menyorot akun non-fokus -- mitigasi/fallback: uji 40 akun di T04-07 (uji termurah di Brief §5).

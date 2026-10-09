@@ -75,7 +75,7 @@
 - ⚠️ ASUMSI: pengertian "decision maker" dan "baru" (jabatan dan jendela hari) belum tertulis; K134 Yoga diasumsikan CFO baru C01 (PRD §1). -- cara validasi: periksa data K134 di T20-01.
 - ⚠️ ASUMSI: total 2,25 jam vs PRD 2 jam (+12,5%, di bawah ambang). -- cara validasi: ukur di J13.
 - ⛔ KONFLIK: daftar aturan lanjutan -- Rencana Teknis §3.4: decision maker baru, klaster tiket tanpa bug, informasi internal yang tidak mengalir; PRD F-21: R5, R6, decision maker baru -- dipakai sementara: PRD; dua item Rencana sudah dicakup 04 (R3) dan 16 (F-17).
-- ⛔ KONFLIK (K-A): repo sudah punya Prisma (`prisma/schema.prisma`, `src/lib/db.ts`) dan `.env.example` berisi `DATABASE_URL`, `SUPABASE_*`; PRD §9 dan Rencana Teknis §2.3 menyatakan keduanya tidak dipakai -- dipakai sementara: hanya Neo4j; keputusan di 00.
+- ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase.
 - 🔁 USULAN PERUBAHAN: tidak ada.
 - Risiko: aturan baru mengubah peringkat golden (C02/C06 tersorot) -- mitigasi/fallback: T20-05; bila mengganggu, nonaktifkan berkas aturan (pindahkan keluar `cypher/signals/`) dan jadikan fitur ini dipotong (PRD §7).
 - Risiko: definisi R5/R6 meleset dari maksud Dio -- mitigasi/fallback: konfirmasi T20-01 sebelum menulis Cypher.

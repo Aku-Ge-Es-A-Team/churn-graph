@@ -51,7 +51,7 @@
 | Tabel (node graph) | `:Sinyal`, `PADA`, `BUKTI` | Pakai | Rencana Teknis §1.3 Langkah 7 |
 | Tabel (node graph) | `:Interaksi`, `:Keputusan`, `:Fitur`, `:Rilis`, `:Akun` | Pakai | Rencana Teknis §1.3 Langkah 3 |
 | Library | `ai` (Vercel AI SDK) + paket provider; `@typesafe-ai/sdk` (versi exact, opsional) | Pakai | Rencana Teknis §2.1; PRD §9 |
-| Env var | `<LLM_API_KEY sesuai provider>` (nama final belum ditetapkan, A8); `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` | Pakai | Rencana Teknis §1.3 Langkah 12, 2 |
+| Env var | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` (9router, keputusan final); `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` | Pakai | Rencana Teknis §1.3 Langkah 12, 2 |
 | Env var | kredensial TypeSafe (lihat 🔁 USULAN PERUBAHAN) | Buat | -- |
 | Script | `package.json` → `claims` + penyisipan di `rebuild` (lihat 🔁) | Ubah | Rencana Teknis §1.3 Langkah 4 |
 
@@ -84,10 +84,10 @@
 ## 9. Asumsi, Konflik & Risiko
 - ⚠️ ASUMSI: total 4,5 jam vs estimasi PRD 3 jam (+50%, >25%). Spike TypeSafe (±1 jam, PRD §7 baris "J9–10") adalah entri jadwal terpisah, kemungkinan tidak termasuk 3 jam F-17; tanpa spike 3,5 jam (+17%). -- cara validasi: konfirmasi ke Adrian/Dio apakah spike dihitung terpisah.
 - ⚠️ ASUMSI: jumlah ±32 interaksi non-template = 350 − 318; daftar kelas klaim, definisi "kalimat bertentangan", dan sumber data terstruktur untuk pencocokan belum tertulis di PRD/Rencana Teknis. -- cara validasi: baca I0224 dan I0258 di T16-02 dan tentukan kelas minimum yang dibutuhkan kasus itu.
-- ⚠️ ASUMSI (A8, A10, A20): provider LLM belum dipilih; kuota cukup; Jev akurat untuk teks Indonesia. -- cara validasi: spike T16-01.
+- ⚠️ ASUMSI (A8, A10, A20): provider LLM = 9router (OpenAI-compatible, sudah diputuskan); kuota cukup; Jev akurat untuk teks Indonesia. -- cara validasi: spike T16-01.
 - ⚠️ ASUMSI: skrip batch di `scripts/claims.ts` dan cache di `data/build/`; nama tidak ditetapkan Rencana Teknis. -- cara validasi: sepakati dengan Dio.
 - ⛔ KONFLIK: fitur ini ada di PRD (F-17, ex-P15) tetapi tidak ada di Rencana Teknis §3.4 (tidak ada detail teknis, relasi `Klaim`, atau langkah rebuild). Aturan prioritas: ikuti PRD -- dipakai sementara: PRD F-17 + deskripsi stack di Rencana Teknis §2.1.
-- ⛔ KONFLIK (K-A): repo sudah punya Prisma (`prisma/schema.prisma`, `src/lib/db.ts`) dan `.env.example` berisi `DATABASE_URL`, `SUPABASE_*`, `CONTEXT7_API_KEY`; PRD §9 dan Rencana Teknis §2.3 menyatakan keduanya tidak dipakai; env LLM juga belum ada di `.env.example` -- dipakai sementara: hanya Neo4j; keputusan di 00.
+- ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase.
 - 🔁 USULAN PERUBAHAN: (1) tambahkan tipe relasi untuk `:Klaim` ke tabel relasi Rencana Teknis Langkah 3; usul: `(Klaim)-[:DIKUTIP_DARI]->(Interaksi)` dan `(Klaim)-[:BERTENTANGAN_DENGAN]->(Keputusan|Klaim)` -- alasan: tabel relasi tidak memuat `Klaim`. Task terblokir: T16-04. (2) tambahkan script `claims` dan sisipkan di `rebuild` setelah `signals` -- alasan: PRD meminta klaim diklasifikasi saat rebuild, sedangkan script `rebuild` Rencana Teknis hanya etl → load → derive → signals. Task terblokir: T16-03. (3) tetapkan nama env var kredensial TypeSafe -- alasan: tidak ada di PRD/Rencana Teknis; hanya dibutuhkan bila Jev dipakai. Task terblokir: T16-01 (jalur Jev).
 - Risiko: LLM salah mengklasifikasi kalimat Indonesia -- mitigasi/fallback: kutipan wajib substring, cache, dan fallback ke AI SDK; fitur dipotong bila J8 gagal (PRD §7).
 - Risiko: kuota/biaya LLM -- mitigasi/fallback: hanya ±32 interaksi, cache hasil, payload ringkas.
