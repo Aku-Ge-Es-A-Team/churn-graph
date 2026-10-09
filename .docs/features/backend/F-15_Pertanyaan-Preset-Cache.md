@@ -39,7 +39,7 @@
 | Modul BE | Pembaca cache di `src/server/` (nama ⚠️ ASUMSI) | Buat | Rencana Teknis Langkah 8 |
 | Modul BE | Logika `POST /api/ask` (13) dan validator (09) | Pakai | Rencana Teknis Langkah 9 |
 | Komponen FE | Tombol preset + panel jawaban di halaman `/tanya` (⚠️ ASUMSI; Rencana menyebut `/explore`) | Buat | Rencana Teknis Langkah 10 |
-| Env var | `<LLM_API_KEY sesuai provider>` (hanya saat membuat cache), `NEO4J_*`, `SNAPSHOT_DATE` | Pakai | Rencana Teknis Langkah 2, 12 |
+| Env var | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` (hanya saat membuat cache), `NEO4J_*`, `SNAPSHOT_DATE` | Pakai | Rencana Teknis Langkah 2, 12 |
 | Endpoint | Tidak ada endpoint baru; cache dibaca Server Component | -- | -- |
 
 ## 6. Breakdown Task Implementasi

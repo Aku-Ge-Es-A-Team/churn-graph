@@ -43,9 +43,9 @@
 | Modul BE | `src/server/queries/` -- `risk.ts` (`getRanking`, `getSignals`), `evidence.ts` (`getAccountEvidence`, induced subgraph), `precedents.ts` | Pakai | Rencana Teknis Langkah 8 |
 | Modul BE | `src/server/queries/connection.ts` (`find_connection`) dan query `search_text` | Buat | Rencana Teknis §2.4, Langkah 9 |
 | Modul BE | Validator sitasi + `readCypher` (09) | Pakai | Rencana Teknis Langkah 8–9 |
-| Layanan eksternal | Provider LLM dengan tool calling (provider belum dipilih, A8) | Pakai | Rencana Teknis §2.1 |
+| Layanan eksternal | Endpoint LLM 9router (OpenAI-compatible) dengan tool calling, lewat `getLlmModel()` di `src/server/ai/provider.ts` (A8 terbukti di spike T00-12) | Pakai | Rencana Teknis §2.1 |
 | Library | `ai` (Vercel AI SDK) + paket provider sesuai pilihan (⚠️ ASUMSI A8); `zod` untuk skema input tool | Pakai (`bun add --exact`) | Rencana Teknis §2.1 |
-| Env var | `<LLM_API_KEY sesuai provider>` (nama belum ditetapkan, A8), `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` | Pakai | Rencana Teknis Langkah 2, 12, §2.4 |
+| Env var | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` | Pakai | Rencana Teknis Langkah 2, 12, §2.4 |
 | Indeks | Full-text index `teks_bebas` di `cypher/schema.cypher` | Pakai | Rencana Teknis Langkah 5 |
 | Node/relasi | `:Sinyal`, `:Keputusan`, `:Interaksi`, `:Tiket`, `MENYETUJUI`, `PADA`, `BUKTI` | Pakai | Rencana Teknis Langkah 3 |
 | Komponen FE | Halaman `/tanya` (input, jawaban, chip ID bukti, subgraph) | Buat | Rencana Teknis Langkah 10 |
@@ -54,7 +54,7 @@
 ## 6. Breakdown Task Implementasi
 | ID | Task | Layer | Estimasi (jam) | Bergantung pada | Output terverifikasi |
 | --- | --- | --- | --- | --- | --- |
-| T13-01 | `bun add --exact ai` + paket provider terpilih; simpan `<LLM_API_KEY sesuai provider>` di `.env.local` dan env Vercel; buat `src/app/api/ask/route.ts` (skeleton, `maxDuration = 60`) | BE | 0,5 | 00 (spike key LLM + keputusan provider, PRD §8 pertanyaan 2) | `POST /api/ask` dengan pertanyaan sederhana menghasilkan satu tool call berhasil dan respons 200 |
+| T13-01 | `ai` dan `@ai-sdk/openai-compatible` sudah terpasang (T00-12); pakai `getLlmModel()` dari `src/server/ai/provider.ts`; pastikan `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` ada di `.env.local` dan env Vercel; buat `src/app/api/ask/route.ts` (skeleton, `maxDuration = 60`) | BE | 0,5 | 00 (spike key LLM + keputusan provider, PRD §8 pertanyaan 2) | `POST /api/ask` dengan pertanyaan sederhana menghasilkan satu tool call berhasil dan respons 200 |
 | T13-02 | Bungkus tool `get_ranking`, `get_account_signals`, `get_evidence`, `find_precedents` (skema input `zod`, hasil JSON ringkas: ID + properti kunci, dipotong) di atas fungsi 05/07/08 | BE | 1,0 | 05 (F-05), 07 (F-08), 08 (F-09) | Tiap tool dipanggil terpisah dari test dan mengembalikan ID node; ukuran hasil dibatasi |
 | T13-03 | Buat tool `search_text` (full-text `teks_bebas` atas interaksi/tiket) dan `find_connection` (`shortestPath` ≤4 hop antar dua entitas) lewat `readCypher` | BE | 1,0 | 09 (F-10), 04 (F-04: data & indeks termuat) | `search_text("KasirPro")` mengembalikan interaksi non-template; `find_connection` antar dua ID mengembalikan jalur atau "tidak ada jalur" |
 | T13-04 | System prompt (5 aturan Rencana Teknis Langkah 9, bahasa Indonesia) dan keluaran terstruktur `{ jawaban, klaim: [{ teks, bukti_ids }] }`; hanya tool tetap yang didaftarkan | BE | 0,5 | T13-01, T13-02 | Respons selalu berbentuk kontrak (validasi skema `zod`); `run_cypher` tidak terdaftar |
@@ -86,7 +86,7 @@
 ## 9. Asumsi, Konflik & Risiko
 - ⚠️ ASUMSI: Estimasi task 6,75 jam vs PRD 3 jam (+125%, di atas ambang 25%). Rencana Teknis §3.4 F09 sendiri memperkirakan ±5 jo untuk v1, dan angka 6,75 memasukkan halaman `/tanya`, evaluasi 12 preset, dan pengujian akun luar fokus yang tidak terhitung di PRD -- cara validasi: bandingkan jam nyata di J12 (gerbang).
 - ⚠️ ASUMSI: Halaman `/tanya` tidak dimiliki file frontend mana pun di manifest (Tegar memegang F-06, F-11, F-12, F-18, F-19); ditulis di sini sebagai T13-07 dengan pemilik Tegar -- cara validasi: konfirmasi pembagian dengan tech lead.
-- ⚠️ ASUMSI: Provider LLM, paket provider AI SDK, dan nama env var API key belum ditetapkan (PRD A8 / §8 pertanyaan 2); dalam dokumen ini ditulis `<LLM_API_KEY sesuai provider>`. T13-01 menunggu keputusan -- cara validasi: spike tool call di J0,5–2 (file 00).
+- ✅ KEPUTUSAN (2026-10-09, Adrian + Dio): provider LLM = endpoint OpenAI-compatible 9router; paket `@ai-sdk/openai-compatible`; env `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`. Spike tool call T00-12 sudah lulus.
 - ⚠️ ASUMSI: Respons dikembalikan setelah validasi selesai (tanpa streaming teks mentah), karena validator F-10 perlu keluaran utuh -- cara validasi: ukur latensi di T13-08; bila >20 detik, pertimbangkan streaming status progres saja.
 - ⚠️ ASUMSI: Fungsi `find_connection` dan `search_text` ditempatkan di `src/server/queries/` (struktur repo Rencana Teknis §2.4 hanya menyebut `connection`); nama berkas `search_text` belum ditetapkan -- cara validasi: sepakati dengan Adrian.
 - ⚠️ ASUMSI: Tool tetap belum tentu menjawab seluruh 12 pertanyaan di `docs/questions.md`: Rencana Teknis Langkah 9 tidak memetakan pertanyaan 4 (akun terdampak BUG-412), 8 (kontak pindah perusahaan dalam 6 bulan), dan 12 (batas outlet paket) ke tool mana pun -- cara validasi: T13-08 memetakan tiap preset ke tool.
