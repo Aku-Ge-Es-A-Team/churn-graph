@@ -1,5 +1,5 @@
 # 09 -- Guardrail & validasi sitasi
-> ID PRD: F-10 · Prioritas: Must · Penanggung jawab: Dio (Backend & AI) · Estimasi: 1 jam-orang (PRD); total task 2,5 jam · Status: Belum dimulai
+> ID PRD: F-10 · Prioritas: Must · Penanggung jawab: Dio (Backend & AI) · Estimasi: 1 jam-orang (PRD); total task 2,5 jam · Status: Implementasi selesai dan terverifikasi (2026-10-09); menunggu review PR
 
 ## 1. Ringkasan Fitur
 - Apa: Dua pagar pengaman. (1) `readCypher` sebagai satu-satunya pintu query: session READ, klausa tulis ditolak, `LIMIT` dipaksa, timeout 5 detik. (2) Validator sitasi: klaim jawaban AI tanpa `bukti_ids` yang ada di hasil tool dibuang/ditandai, dan kutipan harus berupa substring dari teks sumber.
@@ -82,6 +82,12 @@
 - 🔁 USULAN PERUBAHAN: tambahkan field opsional `kutipan[]` pada tiap klaim di kontrak `{ jawaban, klaim[] }` -- alasan: validasi substring menjadi deterministik, tidak bergantung pada parsing tanda petik di `klaim.teks`. Kontrak dimiliki 13 (F-14); sementara memakai ekstraksi tanda petik.
 - Risiko: validator terlalu ketat sehingga menurunkan jumlah preset yang terjawab (gerbang J12 ≥6/12) -- mitigasi: log alasan pembuangan, longgarkan normalisasi spasi bila sah.
 - Risiko: deny-list tidak menangkap semua bentuk tulis -- mitigasi: lapis kedua session READ di server; `/api/cypher` juga berada di belakang Basic Auth (00).
+
+- ✅ KEPUTUSAN (2026-10-09, Adrian): semua identifier, konten aplikasi, dan UI memakai bahasa Inggris; dokumentasi tetap Indonesia. Kosakata graph yang tersimpan di Aura (label `Akun`, `Sinyal`, ..., tipe relasi, kode sinyal, nama properti dataset) TIDAK diterjemahkan karena ditetapkan dokumen produk dan sudah ada di data; pemetaannya ada di `docs/glossary.md`. Tipe di `src/types/graph.ts` kini berbahasa Inggris (mis. `RiskRow`: `account`, `name`, `dashboard`, `level`, `score`, `diverges`, `renewalDays`, `annualValue`, `atRiskValue`, `p`, `topSignals`; level `Critical/High/Watch/Safe` = Kritis/Tinggi/Waspada/Aman, warna dashboard `Green/Yellow/Red` = Hijau/Kuning/Merah).
+- ✅ KEPUTUSAN (2026-10-09, Adrian): tugas milik Dio untuk F-05 s.d. F-11 dikerjakan Adrian; pembagian penanggung jawab di header diabaikan sementara.
+- ✅ HASIL T09-01/02/03: `readCypher` (`src/server/neo4j.ts`) kini melewati `guardCypher` (`src/server/cypher-guard.ts`: tolak klausa tulis, multi-statement, CALL selain full-text, apoc/dbms; LIMIT dipaksa, default 200, diturunkan bila lebih besar), memakai session READ dan timeout transaksi 5000 ms; penolakan melempar `QueryRejectedError` ("Only read queries are allowed: …") sebelum menyentuh Aura. Tes: `tests/server/cypher-guard.test.ts`, `tests/server/neo4j.test.ts` (termasuk uji ke Aura: server sendiri menolak tulis lewat transaksi READ).
+- ✅ HASIL T09-04/05/06: validator sitasi `src/server/ask/validate-citations.ts` (alasan dibuang: `invalid_format`, `no_evidence`, `unknown_evidence`, `quote_without_source_text`, `quote_mismatch`; ditandai: `quote_too_short`, `number_not_found`), `evidence.ts`, `render-answer.ts` (teks tampilan hanya dari klaim lolos), `validation-log.ts` (hitungan dan kode alasan, tanpa teks). Kontrak klaim berbahasa Inggris: `{ answer, claims: [{ text, evidenceIds, quote? }] }`. Tes: `tests/server/ask/*.test.ts`.
+- 🔁 USULAN PERUBAHAN: `readCypher(query, params, { maxLimit })`: query internal tepercaya menaikkan batas LIMIT (5000); konsol dan LLM tetap 200. Pemisah `toPlainValue` (`src/server/neo4j-values.ts`) mengubah Date → string ISO dan Integer → number di lapisan query, dipakai bersama skrip pipeline.
 
 ## 10. Definition of Done
 - [ ] Semua acceptance criteria di section 3 lolos uji di section 8
