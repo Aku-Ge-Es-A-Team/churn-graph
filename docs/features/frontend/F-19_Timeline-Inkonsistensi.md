@@ -1,5 +1,5 @@
 # 18 -- Timeline inkonsistensi statis
-> ID PRD: F-19 · Prioritas: Should #5 · Penanggung jawab: Tegar (Frontend) · Estimasi: 1,5 jam-orang (PRD) · Status: Belum dimulai
+> ID PRD: F-19 · Prioritas: Should #5 · Penanggung jawab: Tegar (Frontend) · Estimasi: 1,5 jam-orang (PRD) · Status: Implementasi selesai (2026-10-10, branch `tegar/landing-page`) memakai `getSignals` (tanpa query baru, sesuai section 9); ⛔ urutan C01 di Aura = 2025-11-28 → 2026-08-15 → 2026-09-18, berbeda dari AC (17-06 → 20-07 → 15-08 → 18-09) karena definisi `since` JANJI_DILANGGAR di 04 (F-04), perlu keputusan Adrian
 
 ## 1. Ringkasan Fitur
 - Apa: daftar vertikal di `/akun/[id]` yang menampilkan kapan setiap sinyal pertama muncul (`sejak` dari F-04), berurutan menurut tanggal, dengan label "H-x sebelum renewal" per sinyal. Dibangun dari data yang sama untuk semua akun, tanpa hardcode.
