@@ -1,50 +1,47 @@
-import { z } from "zod";
-import { readCypher } from "@/server/neo4j";
-import { ask, defaultGenerate } from "@/server/ask/ask";
-import { getLlmModel } from "@/server/ai/provider";
-import { getJevJudge } from "@/server/ai/jev";
+import { askQuestion, FAILURE_MESSAGE, QuestionSchema } from "@/server/ask/ask";
+import { REFUSAL_SUGGESTIONS } from "@/server/ask/presets";
 import { createIntentClassifier } from "@/server/ask/intent";
+import { getJevJudge } from "@/server/ai/jev";
+import { getLlmModel } from "@/server/ai/provider";
+import { readCypher } from "@/server/neo4j";
+import type { CypherRunner } from "@/server/queries/runner";
 
-// POST /api/ask  { "question": "..." }  ->  { answer, claims[], graph, refused, note?, toolsUsed[] }
-// Responses: 200 · 400 invalid body · 502 LLM failure · 503 LLM not configured / graph unavailable.
-// The LLM runs a bounded tool loop and can take well over the default function time.
+// POST /api/ask { question } → AskResponse (F-14).
+// 200 for every business outcome (ok / partial / refused / failed) · 400 invalid input · 500 unexpected crash only.
+// The PRD field name `pertanyaan` is accepted as an alias.
 export const maxDuration = 60;
 
-const BodySchema = z.object({ question: z.string().trim().min(3).max(500) });
-
-const error = (status: number, code: string, message: string, extra: Record<string, unknown> = {}) => Response.json({ error: code, message, ...extra }, { status });
-const SUGGEST_PRESETS = "Try one of the preset questions instead.";
+// Trusted tool queries: READ session, write clauses denied and 5 s timeout still apply; only the LIMIT ceiling is raised.
+const run: CypherRunner = (query, params) => readCypher(query, params, { maxLimit: 5000 });
 
 export async function POST(request: Request) {
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return error(400, "invalid_body", "The request body must be JSON.");
+    return Response.json({ error: "invalid_body", message: 'The body must be JSON: { "question": string }.' }, { status: 400 });
   }
-  const parsed = BodySchema.safeParse(body);
-  if (!parsed.success) return error(400, "invalid_question", "`question` must be text of 3 to 500 characters.");
+  const raw = (body as { question?: unknown; pertanyaan?: unknown } | null) ?? {};
+  const question = QuestionSchema.safeParse(raw.question ?? raw.pertanyaan);
+  if (!question.success) {
+    return Response.json({ error: "invalid_question", message: "`question` must be a string of 3–500 characters." }, { status: 400 });
+  }
 
-  let model: ReturnType<typeof getLlmModel>;
+  let model;
   try {
     model = getLlmModel();
   } catch (e) {
-    console.error("[api/ask] LLM is not configured:", e instanceof Error ? e.message : e);
-    return error(503, "llm_not_configured", `The language model is not configured. ${SUGGEST_PRESETS}`);
+    // Incomplete LLM env is an operational failure, reported like any other LLM outage (variable names only, no values).
+    console.error("[api/ask]", e instanceof Error ? e.message : e);
+    return Response.json({ status: "failed", answer: FAILURE_MESSAGE, claims: [], discarded: 0, presetSuggestions: REFUSAL_SUGGESTIONS, toolsCalled: [], durationMs: 0 });
   }
 
   try {
-    // Trusted tools use the guarded READ session; the LIMIT ceiling stays at the default of 200.
+    // JEV AI intent routing is optional: wired only when TYPESAFE_API_KEY is set, otherwise the pipeline runs unchanged.
     const judge = getJevJudge();
-    const result = await ask(parsed.data.question, { run: (q, p) => readCypher(q, p), generate: defaultGenerate(model), ...(judge ? { classify: createIntentClassifier(judge) } : {}) });
-    return Response.json(result);
+    return Response.json(await askQuestion(question.data, { model, run, ...(judge ? { classify: createIntentClassifier(judge) } : {}) }));
   } catch (e) {
-    // Only the error name/status go to the log and the response: provider errors can echo request headers.
-    const err = e as { name?: string; statusCode?: number; message?: string };
-    console.error(`[api/ask] failed: ${err.name ?? "Error"}${err.statusCode ? ` HTTP ${err.statusCode}` : ""}`);
-    if (err.name === "Neo4jConfigError" || err.name === "ServiceUnavailable" || err.name === "Neo4jError") {
-      return error(503, "graph_unavailable", `The graph database could not be reached. ${SUGGEST_PRESETS}`);
-    }
-    return error(502, "llm_unavailable", `The language model failed or timed out. ${SUGGEST_PRESETS}`);
+    console.error("[api/ask] unexpected error:", e instanceof Error ? e.message : e);
+    return Response.json({ error: "internal_error", message: "Unexpected error." }, { status: 500 });
   }
 }
