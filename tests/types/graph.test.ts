@@ -70,7 +70,9 @@ describe("Claim and AskResponse", () => {
   });
 
   test("an answer carries claims", () => {
-    expect(AskResponseSchema.safeParse({ answer: "a", claims: [{ text: "t", evidenceIds: [] }] }).success).toBe(true);
-    expect(AskResponseSchema.safeParse({ answer: "a" }).success).toBe(false);
+    const base = { status: "ok", answer: "a", discarded: 0, toolsCalled: ["get_ranking"], durationMs: 1 };
+    expect(AskResponseSchema.safeParse({ ...base, claims: [{ text: "t", evidenceIds: [] }] }).success).toBe(true);
+    expect(AskResponseSchema.safeParse(base).success).toBe(false);
+    expect(AskResponseSchema.safeParse({ ...base, claims: [], status: "sebagian" }).success).toBe(false);
   });
 });

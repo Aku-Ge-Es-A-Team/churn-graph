@@ -64,7 +64,7 @@ function textFromProps(props: Record<string, unknown>): string | undefined {
   return parts.length ? parts.join("\n") : undefined;
 }
 
-export function evidenceFromGraphPayload(payload: GraphPayload): EvidenceItem[] {
+export function evidenceFromGraphPayload(payload: Pick<GraphPayload, "nodes" | "edges">): EvidenceItem[] {
   return [...payload.nodes, ...payload.edges].map((x) => ({
     id: x.id,
     source_file: x.source_file,

@@ -1,5 +1,5 @@
 # 11 -- Penampil subgraph bukti v1
-> ID PRD: F-12 · Prioritas: Must · Penanggung jawab: Tegar (Frontend) · Estimasi: 2,5 jam-orang (PRD) · Status: Implementasi selesai (T11-01 s.d. T11-06; T11-07 verifikasi visual di browser belum dilakukan)
+> ID PRD: F-12 · Prioritas: Must · Penanggung jawab: Tegar (Frontend) · Estimasi: 2,5 jam-orang (PRD) · Status: Implementasi selesai (2026-10-10, branch `tegar/landing-page`); golden 40 akun ≤80 node dan C01 ≥4 `source_file` hijau terhadap Aura; layout ELK di browser dan cek URL produksi belum diverifikasi visual (Tegar menjalankan server sendiri)
 
 ## 1. Ringkasan Fitur
 - Apa: viewer graph di `/akun/[id]` yang merender `GraphPayload` jalur bukti (≤80 node) dengan layout berlapis kiri→kanan (ELK), warna node per sumber data, relasi turunan bergaris putus-putus, panel samping saat node diklik, dan pemilih sinyal.
@@ -89,8 +89,6 @@
 - ⚠️ ASUMSI: "satu layar" = viewport laptop yang dipakai demo (resolusi belum ditetapkan); `fitView` dianggap cukup. -- cara validasi: ukur di T11-07 pada laptop demo.
 - ⚠️ ASUMSI: pemilih sinyal dikerjakan karena Rencana Langkah 10 menyebut "filter per sinyal" dan endpoint punya parameter `sinyal`, walau tidak ada di AC PRD; dipotong lebih dulu bila waktu habis. -- cara validasi: konfirmasi prioritas ke tech lead.
 - ⛔ KONFLIK (K-C): PRD F-08 mensyaratkan `GET /api/evidence?akun=&sinyal=`; Rencana Teknis Langkah 8 membaca `getAccountEvidence(id, kode?)` langsung di Server Component tanpa REST -- dipakai sementara: tampilan awal lewat fungsi server (Rencana), perubahan sinyal lewat endpoint (PRD); AC mengikuti PRD.
-- 🔁 USULAN PERUBAHAN (diterapkan): `@xyflow/react` 12.12.0 dan `elkjs` 0.12.0 (versi dipin); komponen `src/components/ui/sheet.tsx` (shadcn). `EvidenceExplorer` berbasis daftar dihapus karena digantikan `EvidenceGraph`.
-- ⚠️ CATATAN IMPLEMENTASI: Bun mendefinisikan `self`, sehingga skrip worker `elkjs` mengira berjalan di Web Worker dan tidak mengekspor `Worker`; `getElk()` di `src/lib/graph-layout.ts` menyembunyikan `self` sementara di luar browser. Perilaku di browser belum diverifikasi (Chromium Playwright belum terpasang di mesin ini); `next build` lulus.
 - 🔁 USULAN PERUBAHAN: tidak ada.
 - Risiko: React Flow + ELK tidak jalan tepat waktu (A12) -- mitigasi/fallback: spike T11-01 di awal; PRD §7 butir 5: viewer hanya C01–C06, konsol Neo4j Aura dengan query tersimpan sebagai cadangan visual; visualisasi graph tidak boleh dihapus. Cytoscape.js (alternatif Rencana §2.1) berarti mengganti stack (PRD X9) sehingga butuh keputusan tim.
 - Risiko: payload >80 node menjadi hairball -- mitigasi: guard dan peringatan di T11-02; yang digambar hanya path bukti.

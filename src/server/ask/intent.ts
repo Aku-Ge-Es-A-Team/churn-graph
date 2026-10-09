@@ -47,5 +47,5 @@ export const shouldRefuseEarly = (r: IntentResult | null): boolean => r?.intent 
 /** Extra system-prompt line for a confidently classified, in-scope question; empty otherwise. */
 export function toolHint(r: IntentResult | null): string {
   if (!r || r.intent === "out_of_scope" || r.confidence < HINT_MIN_CONFIDENCE) return "";
-  return `\n9. Question type: ${r.intent}. ${TOOL_HINTS[r.intent]}`;
+  return `\n\nTOOL HINT (question type: ${r.intent}): ${TOOL_HINTS[r.intent]}`;
 }

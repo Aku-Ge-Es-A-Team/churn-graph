@@ -11,6 +11,7 @@ import { fetchAccountExplanation } from "./explanation";
 import { fetchRetentionCard } from "./precedents";
 import { judgeRetentionCard } from "./retention-judgement";
 import { fetchRanking, fetchSignals } from "./risk";
+import { fetchUsageComparison, type UsageComparison } from "./usage";
 import type { CypherRunner } from "./runner";
 
 // Trusted internal queries: READ session, write clauses denied and 5 s timeout still apply; only the LIMIT ceiling is raised.
@@ -60,4 +61,11 @@ export async function getAccountDetail(account: string): Promise<AccountDetail |
   // JEV AI judges the rule-based candidates; without a key or on any failure the rule-based card is returned unchanged.
   const retention = await judgeRetentionCard(ruleCard, row, signals, getJevJudge());
   return { row, signals, evidence: evidence.payload, explanation, retention };
+}
+
+/** F-18 usage vs release comparison; null when the account has no usage anomaly that coincides with a release. */
+export async function getUsageComparison(account: string): Promise<UsageComparison | null> {
+  "use cache";
+  cacheLife("minutes");
+  return fetchUsageComparison(run, account);
 }

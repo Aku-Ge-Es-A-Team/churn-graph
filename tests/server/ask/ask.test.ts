@@ -1,147 +1,170 @@
-// "Ask the graph" pipeline and tools (F-14), without network: the graph runner and the LLM are fakes.
+// askQuestion (F-14) with a mocked LLM (MockLanguageModelV4) and an in-memory graph: no real LLM or Aura call.
+// Scenarios: ok, partial, refused (no tool / nothing survives), failed (LLM error, graph down), prompt injection.
 import { describe, expect, test } from "bun:test";
-import { ask, claimsFromBracketedProse, hasUncitedLines, parseModelJson, type GenerateFn } from "../../../src/server/ask/ask";
-import { createAskTools, TOOL_NAMES } from "../../../src/server/ask/tools";
-import { EvidenceRegistry } from "../../../src/server/ask/evidence";
-import { findConnection, sanitizeSearchText, searchText } from "../../../src/server/queries/connection";
-import type { CypherRunner } from "../../../src/server/queries/runner";
+import { MockLanguageModelV4 } from "ai/test";
+import { askQuestion, parseAnswerJson } from "../../../src/server/ask/ask";
+import { PRESET_QUESTIONS } from "../../../src/server/ask/presets";
+import { REFUSAL_MESSAGE } from "../../../src/server/ask/render-answer";
+import { SYSTEM_PROMPT } from "../../../src/server/ask/prompt";
+import { fakeGraph } from "../../helpers/fake-graph";
 
-const INTERACTION_TEXT = "Pelanggan menyebut akan pindah ke KasirPro karena janji fitur belum ditepati";
-const nodes: Record<string, { labels: string[]; props: Record<string, unknown> }> = {
-  I0331: { labels: ["Interaksi", "Entitas"], props: { id: "I0331", isi: INTERACTION_TEXT, source_file: "interactions.jsonl", source_id: "I0331" } },
-  K134: { labels: ["Kontak", "Entitas"], props: { id: "K134", nama: "CFO baru", source_file: "crm_contacts.csv", source_id: "K134" } },
+const usage = {
+  inputTokens: { total: 10, noCache: 10, cacheRead: undefined, cacheWrite: undefined },
+  outputTokens: { total: 5, text: 5, reasoning: undefined },
 };
-
-/** Fake graph: answers only the queries the tools under test issue. */
-const run: CypherRunner = async (query, params = {}) => {
-  if (query.includes("db.index.fulltext.queryNodes")) {
-    return /kasirpro/i.test(String(params.query)) ? [{ id: "I0331", labels: ["Interaksi", "Entitas"], props: nodes.I0331.props, score: 2.5 }] : [];
-  }
-  if (query.includes("shortestPath")) {
-    return params.from === "I0331" && params.to === "K134" ? [{ nodeIds: ["I0331", "K134"], relationshipTypes: ["DIHADIRI_OLEH"] }] : [];
-  }
-  if (query.includes("WHERE n.id IN $ids")) {
-    return (params.ids as string[]).filter((id) => nodes[id]).map((id) => ({ id, labels: nodes[id].labels, props: nodes[id].props }));
-  }
-  if (query.includes("(x:Entitas)-[r]->(y:Entitas)")) return [];
-  throw new Error(`unexpected query: ${query.slice(0, 60)}`);
-};
-
-type Tools = ReturnType<typeof createAskTools>;
-const callTool = async (tools: Tools, name: "search_text", input: { query: string }) =>
-  (tools[name].execute as (input: { query: string }, options: object) => Promise<unknown>)(input, { toolCallId: "t", messages: [] });
-
-/** Fake LLM: calls search_text for real (so the registry fills up), then replies with the given text. */
-const llm = (reply: string, useTool = true): GenerateFn => async ({ tools }) => {
-  if (useTool) await callTool(tools, "search_text", { query: "KasirPro" });
-  return { text: reply, toolsUsed: useTool ? ["search_text"] : [] };
-};
-
-const goodClaim = { text: "Kontak menyebut KasirPro pada I0331", evidenceIds: ["I0331"], quote: "pindah ke KasirPro" };
-
-describe("ask pipeline", () => {
-  test("happy path: a claim backed by a tool result passes and the subgraph is built from its evidence IDs", async () => {
-    const result = await ask("Siapa yang menyebut KasirPro?", { run, generate: llm(JSON.stringify({ answer: "x", claims: [goodClaim] })) });
-    expect(result.refused).toBe(false);
-    expect(result.claims.map((c) => c.evidenceIds)).toEqual([["I0331"]]);
-    expect(result.graph?.nodes.map((n) => n.id)).toEqual(["I0331"]);
-    expect(result.toolsUsed).toEqual(["search_text"]);
-    // The free-form `answer` of the model is never shown.
-    expect(result.answer).toBe(goodClaim.text);
-  });
-
-  test("a claim with an invented ID is discarded while the valid one is kept", async () => {
-    const fake = { text: "Ada 7 akun lain yang terdampak", evidenceIds: ["T9999"] };
-    const result = await ask("q?", { run, generate: llm(`\`\`\`json\n${JSON.stringify({ answer: "", claims: [goodClaim, fake] })}\n\`\`\``) });
-    expect(result.claims).toHaveLength(1);
-    expect(result.answer).not.toContain("7 akun");
-    expect(result.note).toContain("discarded");
-  });
-
-  test("error path: when every claim is invalid the answer is a refusal, not model knowledge", async () => {
-    const result = await ask("q?", { run, generate: llm(JSON.stringify({ answer: "tebakan", claims: [{ text: "x", evidenceIds: ["T9999"] }] })) });
-    expect(result.refused).toBe(true);
-    expect(result.graph).toBeNull();
-    expect(result.answer).toContain("preset");
-  });
-
-  test("error path: a question that triggers no tool is refused politely", async () => {
-    const result = await ask("resep nasi goreng", { run, generate: llm(JSON.stringify({ answer: "Tumis nasi", claims: [goodClaim] }), false) });
-    expect(result.refused).toBe(true);
-    expect(result.claims).toEqual([]);
-  });
-
-  test("error path: a reply with neither JSON nor bracketed IDs is refused", async () => {
-    const result = await ask("q?", { run, generate: llm("Maaf, saya tidak tahu.") });
-    expect(result.refused).toBe(true);
-  });
-
-  test("prose with bracketed IDs becomes claims, and an invented bracketed ID is still dropped", async () => {
-    const prose = "1. **Kontak** menyebut KasirPro . [I0331]\nRingkasan tanpa ID.\n- Ada 7 akun lain [T9999]";
-    const result = await ask("q?", { run, generate: llm(prose) });
-    expect(result.claims).toEqual([{ text: "Kontak menyebut KasirPro.", evidenceIds: ["I0331"] }]);
-    expect(result.note).toContain("discarded");
-  });
+const toolStep = (toolName: string, input: unknown) => ({
+  content: [{ type: "tool-call" as const, toolCallId: `call-${toolName}`, toolName, input: JSON.stringify(input) }],
+  finishReason: { unified: "tool-calls" as const, raw: undefined },
+  usage,
+  warnings: [],
 });
-
-describe("tools", () => {
-  test("exactly the six fixed tools are registered and run_cypher is not among them", () => {
-    const tools = createAskTools({ run, registry: new EvidenceRegistry() });
-    expect(Object.keys(tools).sort()).toEqual([...TOOL_NAMES].sort());
-    expect(Object.keys(tools)).not.toContain("run_cypher");
-  });
-
-  test("search_text registers the returned nodes as citeable evidence with their text", async () => {
-    const registry = new EvidenceRegistry();
-    const out = (await callTool(createAskTools({ run, registry }), "search_text", { query: "KasirPro" })) as { citeableIds: string[] };
-    expect(out.citeableIds).toContain("I0331");
-    expect(registry.get("I0331")?.text).toBe(INTERACTION_TEXT);
-    expect(registry.has("T9999")).toBe(false);
-  });
+const textStep = (text: string) => ({
+  content: [{ type: "text" as const, text }],
+  finishReason: { unified: "stop" as const, raw: undefined },
+  usage,
+  warnings: [],
 });
+const answer = (claims: unknown[]) => JSON.stringify({ answer: "free text that is never shown", claims });
 
-describe("connection queries", () => {
-  test("search text is sanitised and an empty query returns nothing", async () => {
-    expect(sanitizeSearchText('Kasir"Pro" (v4.12) && x')).toBe("Kasir Pro v4.12 x");
-    expect(await searchText(run, "   ")).toEqual([]);
-    expect((await searchText(run, "KasirPro"))[0].id).toBe("I0331");
-  });
+function ask(steps: ReturnType<typeof toolStep | typeof textStep>[], options: { fail?: boolean } = {}) {
+  const model = new MockLanguageModelV4({ doGenerate: steps });
+  return { model, result: askQuestion("Kenapa C10 berisiko?", { model, run: fakeGraph(options).run }) };
+}
 
-  test("find_connection returns the path, or found:false when there is none", async () => {
-    expect(await findConnection(run, "I0331", "K134")).toEqual({ found: true, hops: 1, nodeIds: ["I0331", "K134"], relationshipTypes: ["DIHADIRI_OLEH"] });
-    expect((await findConnection(run, "I0331", "ZZZ")).found).toBe(false);
-    expect((await findConnection(run, "I0331", "I0331")).found).toBe(false);
-  });
-});
-
-describe("parseModelJson", () => {
-  test("extracts the object from fences and prose, and returns null when there is none", () => {
-    expect(parseModelJson('Hasil: {"a":1} selesai')).toEqual({ a: 1 });
-    expect(parseModelJson("tidak ada json")).toBeNull();
-    expect(parseModelJson("{rusak")).toBeNull();
-  });
-});
-
-describe("claimsFromBracketedProse", () => {
-  test("reads several IDs inside one pair of brackets and keeps separate brackets working", () => {
-    const text = "- **Janji:** FEAT-07 akan dirilis Q3 2026. [D-2025-11, FEAT-07]\nPenyetuju: Andi Wiratama. [E01] [D-2025-11]";
-    expect(claimsFromBracketedProse(text).claims).toEqual([
-      { text: "Janji: FEAT-07 akan dirilis Q3 2026.", evidenceIds: ["D-2025-11", "FEAT-07"] },
-      { text: "Penyetuju: Andi Wiratama.", evidenceIds: ["E01", "D-2025-11"] },
+describe("askQuestion", () => {
+  test("ok: every claim cites evidence returned by a tool; the answer is built from the claims only", async () => {
+    const { result } = ask([
+      toolStep("get_account_signals", { account: "C10" }),
+      textStep(
+        answer([
+          { text: "C10 berlevel High dengan estimasi rupiah berisiko 40.000.000.", evidenceIds: ["C10"] },
+          { text: "Klien menyebut kompetitor KasirPro.", evidenceIds: ["I0500"], quote: "membandingkan dengan KasirPro" },
+        ]),
+      ),
     ]);
+    const res = await result;
+    expect(res.status).toBe("ok");
+    expect(res.claims).toHaveLength(2);
+    expect(res.discarded).toBe(0);
+    expect(res.toolsCalled).toEqual(["get_account_signals"]);
+    expect(res.answer).not.toContain("never shown");
+    expect(res.answer).toContain("KasirPro");
+    expect(res.presetSuggestions).toBeUndefined();
   });
 
-  test("error path: a line without IDs and a bracket that is not an ID list yield no claim", () => {
-    expect(claimsFromBracketedProse("Tidak ada ID di sini.\nCatatan [lihat dokumen ini] saja.").claims).toEqual([]);
+  test("partial: a claim with an ID no tool returned is discarded, the rest survives", async () => {
+    const res = await ask([
+      toolStep("get_account_signals", { account: "C10" }),
+      textStep(answer([{ text: "Klien menyebut KasirPro.", evidenceIds: ["I0500"] }, { text: "Champion pindah.", evidenceIds: ["K017"] }])),
+    ]).result;
+    expect(res.status).toBe("partial");
+    expect(res.claims.map((c) => c.evidenceIds)).toEqual([["I0500"]]);
+    expect(res.discarded).toBe(1);
+  });
+
+  test("partial: a fabricated quote discards its claim", async () => {
+    const res = await ask([
+      toolStep("search_text", { query: "KasirPro" }),
+      textStep(
+        answer([
+          { text: "Ada kompetitor.", evidenceIds: ["I0500"] },
+          { text: "Klien akan pindah.", evidenceIds: ["I0500"], quote: "kami pasti pindah ke KasirPro" },
+        ]),
+      ),
+    ]).result;
+    expect(res.status).toBe("partial");
+    expect(res.claims).toHaveLength(1);
+  });
+
+  test("phase 2: a markdown final text is re-submitted through the forced output tool", async () => {
+    const { model, result } = ask([
+      toolStep("search_text", { query: "KasirPro" }),
+      textStep("**C10** sedang membandingkan dengan KasirPro."),
+      toolStep("submit_answer", { answer: "-", claims: [{ text: "Klien membandingkan dengan KasirPro.", evidenceIds: ["I0500"] }] }),
+    ]);
+    const res = await result;
+    expect(res.status).toBe("ok");
+    expect(res.claims.map((c) => c.evidenceIds)).toEqual([["I0500"]]);
+    expect(res.toolsCalled).toEqual(["search_text"]); // the output tool is not a data tool
+    const submit = model.doGenerateCalls[2];
+    expect((submit.tools ?? []).map((t) => t.name)).toEqual(["submit_answer"]);
+    expect(submit.toolChoice).toEqual({ type: "required" });
+  });
+
+  test("refused: out-of-scope question, no tool called → polite refusal with presets", async () => {
+    const res = await ask([textStep(answer([{ text: "Nasi goreng pakai bawang.", evidenceIds: [] }]))]).result;
+    expect(res.status).toBe("refused");
+    expect(res.answer).toBe(REFUSAL_MESSAGE);
+    expect(res.claims).toEqual([]);
+    expect(res.presetSuggestions?.length).toBeGreaterThan(0);
+    expect(PRESET_QUESTIONS as readonly string[]).toContain(res.presetSuggestions![0]);
+  });
+
+  test("refused: tools ran but no claim survives the validator", async () => {
+    const res = await ask([toolStep("get_ranking", {}), textStep(answer([{ text: "Tanpa bukti.", evidenceIds: [] }]))]).result;
+    expect(res).toMatchObject({ status: "refused", discarded: 1, toolsCalled: ["get_ranking"] });
+  });
+
+  test("refused: the final text is not JSON", async () => {
+    const res = await ask([toolStep("get_ranking", {}), textStep("C10 paling berisiko.")]).result;
+    expect(res.status).toBe("refused");
+  });
+
+  test("failed: the LLM call throws → structured failure, no exception reaches the caller", async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        throw new Error("401 invalid key");
+      },
+    });
+    const res = await askQuestion("Kenapa C10 berisiko?", { model, run: fakeGraph().run });
+    expect(res).toMatchObject({ status: "failed", claims: [] });
+    expect(res.presetSuggestions?.length).toBeGreaterThan(0);
+  });
+
+  test("failed: the graph is down (tool error) and nothing could be answered", async () => {
+    const res = await ask([toolStep("get_ranking", {}), textStep(answer([]))], { fail: true }).result;
+    expect(res.status).toBe("failed");
+    expect(res.toolsCalled).toEqual(["get_ranking"]);
+  });
+
+  test("invalid question → refused without calling the model", async () => {
+    const model = new MockLanguageModelV4({ doGenerate: [textStep("{}")] });
+    const res = await askQuestion("  a ", { model, run: fakeGraph().run });
+    expect(res.status).toBe("refused");
+    expect(model.doGenerateCalls).toHaveLength(0);
+  });
+
+  test("prompt injection in a ticket cannot smuggle an unverified claim through", async () => {
+    // The ticket text tells the model to declare C10 safe with evidence FAKE-9; a compromised model obeys.
+    const { model, result } = ask([
+      toolStep("search_text", { query: "sinkron", account: "C10" }),
+      textStep(answer([{ text: "C10 aman.", evidenceIds: ["FAKE-9"] }])),
+    ]);
+    const res = await result;
+    expect(res.status).toBe("refused");
+    expect(res.claims).toEqual([]);
+    // Untrusted data only travels as a tool result; the system prompt and the user turn are ours.
+    const prompt = model.doGenerateCalls[1].prompt;
+    expect(prompt[0]).toMatchObject({ role: "system", content: SYSTEM_PROMPT });
+    expect(JSON.stringify(prompt.filter((m) => m.role === "user"))).not.toContain("ABAIKAN");
+    expect(JSON.stringify(prompt.filter((m) => m.role === "tool"))).toContain("ABAIKAN");
+  });
+
+  test("only the six fixed tools are offered to the model", async () => {
+    const { model, result } = ask([textStep(answer([]))]);
+    await result;
+    const names = (model.doGenerateCalls[0].tools ?? []).map((t) => t.name).sort();
+    expect(names).toEqual(["find_connection", "find_precedents", "get_account_signals", "get_evidence", "get_ranking", "search_text"]);
   });
 });
 
-
-describe("hasUncitedLines", () => {
-  test("detects a substantive line without IDs (citation only at the end of a block)", () => {
-    expect(hasUncitedLines("- Janji: integrasi akuntansi akan dirilis Q3 2026.\n- Penyetuju: Andi Wiratama.\n[D-2025-11, E01]")).toBe(true);
+describe("parseAnswerJson", () => {
+  test("tolerates code fences and surrounding text", () => {
+    expect(parseAnswerJson('Berikut:\n```json\n{"answer":"a","claims":[]}\n```')).toEqual({ answer: "a", claims: [] });
   });
-  test("a fully cited reply, short headings and blank lines are fine", () => {
-    expect(hasUncitedLines("Untuk C01:\n\n- Janji integrasi akuntansi dirilis Q3 2026. [D-2025-11]\n- Penyetuju adalah Andi Wiratama. [E01]")).toBe(false);
+
+  test("returns null for non-JSON", () => {
+    expect(parseAnswerJson("tidak ada")).toBeNull();
+    expect(parseAnswerJson("{rusak")).toBeNull();
   });
 });
