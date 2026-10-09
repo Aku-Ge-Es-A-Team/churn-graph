@@ -3,35 +3,27 @@ import { connection } from "next/server";
 import { RankingBoard } from "@/components/ranking/ranking-board";
 import { getRanking } from "@/server/queries";
 
-function BoardSkeleton() {
-  return (
-    <div className="flex flex-col gap-2" aria-busy="true" aria-label="Loading the ranking">
-      {Array.from({ length: 8 }, (_, i) => (
-        <div key={i} className="h-12 animate-pulse rounded-md bg-muted" />
-      ))}
-    </div>
-  );
-}
-
-// Rendered per request: the data is read from Aura (and cached by getRanking), never at build time.
-async function Board() {
+async function RankingContent() {
   await connection();
   const rows = await getRanking();
-  return <RankingBoard rows={rows} />;
-}
-
-export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Churn risk ranking</h1>
-        <p className="text-sm text-muted-foreground">
-          40 customer accounts ordered by score (Σ signal weight × renewal factor). Snapshot date 2026-10-01.
+    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-6 py-10">
+      <header className="max-w-3xl">
+        <p className="text-sm font-medium text-primary">Data Graph · F-05 / F-11</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Churn early warning</h1>
+        <p className="mt-3 text-muted-foreground">
+          Ranked customer risk findings from the context graph, with renewal timing, estimated exposure, and evidence-backed signals.
         </p>
-      </div>
-      <Suspense fallback={<BoardSkeleton />}>
-        <Board />
-      </Suspense>
+      </header>
+      <RankingBoard rows={rows} />
     </main>
   );
+}
+
+function RankingFallback() {
+  return <main className="mx-auto w-full max-w-6xl px-6 py-10"><div className="h-64 animate-pulse rounded-lg border bg-muted/30" /></main>;
+}
+
+export default function HomePage() {
+  return <Suspense fallback={<RankingFallback />}><RankingContent /></Suspense>;
 }
