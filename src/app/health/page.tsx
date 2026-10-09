@@ -5,32 +5,32 @@ import { Neo4jConfigError, readCypher } from "@/server/neo4j";
 
 export const metadata: Metadata = { title: "Health" };
 
-type Status = { ok: true } | { ok: false; pesan: string };
+type Status = { ok: true } | { ok: false; message: string };
 
-async function cekNeo4j(): Promise<Status> {
+async function checkNeo4j(): Promise<Status> {
   try {
     const rows = await readCypher<{ ok: number }>("RETURN 1 AS ok");
-    return rows[0]?.ok === 1 ? { ok: true } : { ok: false, pesan: "Jawaban RETURN 1 tidak sesuai" };
+    return rows[0]?.ok === 1 ? { ok: true } : { ok: false, message: "Unexpected answer to RETURN 1" };
   } catch (error) {
-    console.error("[health] Neo4j gagal:", error);
-    if (error instanceof Neo4jConfigError) return { ok: false, pesan: error.message };
-    // Hanya kode error yang ditampilkan; detail lengkap ada di log server.
+    console.error("[health] Neo4j check failed:", error);
+    if (error instanceof Neo4jConfigError) return { ok: false, message: error.message };
+    // Only the error code is shown; the full detail stays in the server log.
     const code = (error as { code?: unknown })?.code;
-    return { ok: false, pesan: `Tidak bisa menjalankan RETURN 1 ke Neo4j${typeof code === "string" ? ` (${code})` : ""}` };
+    return { ok: false, message: `Could not run RETURN 1 against Neo4j${typeof code === "string" ? ` (${code})` : ""}` };
   }
 }
 
 async function HealthStatus() {
-  await connection(); // selalu dicek per request, tidak masuk static shell / cache
-  const status = await cekNeo4j();
+  await connection(); // always checked per request, never part of the static shell or a cache
+  const status = await checkNeo4j();
   return status.ok ? (
     <p role="status" className="text-lg font-semibold text-primary">
-      OK — Neo4j menjawab RETURN 1
+      OK — Neo4j answered RETURN 1
     </p>
   ) : (
     <div role="alert" className="rounded-lg bg-destructive/10 p-4 text-destructive">
       <p className="font-semibold">ERROR</p>
-      <p className="text-sm">{status.pesan}</p>
+      <p className="text-sm">{status.message}</p>
     </div>
   );
 }
@@ -39,7 +39,7 @@ export default function HealthPage() {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-col gap-4 p-8">
       <h1 className="text-2xl font-semibold">Health check</h1>
-      <Suspense fallback={<p className="text-muted-foreground">Memeriksa koneksi Neo4j…</p>}>
+      <Suspense fallback={<p className="text-muted-foreground">Checking the Neo4j connection…</p>}>
         <HealthStatus />
       </Suspense>
     </main>
