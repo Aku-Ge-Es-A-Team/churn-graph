@@ -1,39 +1,37 @@
-import { LogoMark } from "@/components/brand/logo";
-import { HeroGraph } from "@/components/site/hero-graph";
-import { ScrollBadge } from "@/components/site/scroll-badge";
+import { CtaLink } from "@/components/site/cta-link";
+import { HeroEvidenceList, HeroGraph } from "@/components/site/hero-graph";
+import { Container } from "@/components/site/section-shell";
 import { siteConfig } from "@/lib/site-config";
 
-/** Hero landing page: wordmark raksasa, satu paragraf, dan ilustrasi kontradiksi C01. */
+/** Hero landing page: judul di kiri, paragraf + CTA di kanan, ilustrasi C01 selebar layar di bawahnya. */
 export function LandingHero() {
   return (
-    <section aria-labelledby="hero-title" className="mx-auto max-w-[1440px] px-5 pb-16 pt-6 md:px-10 md:pt-10">
-      <h1
-        id="hero-title"
-        // Ukuran dihitung dari lebar kontainer agar wordmark selalu mengisi satu baris penuh.
-        className="-ml-[0.04em] whitespace-nowrap font-heading text-[calc((100vw-2.5rem)/5.15)] leading-[0.9] font-light tracking-[-0.035em] text-ink md:text-[calc((100vw-5rem)/5.15)] min-[1440px]:text-[calc((1440px-5rem)/5.15)]"
-      >
-        {siteConfig.name}
-      </h1>
-
-      <div className="mt-8 grid gap-6 md:mt-10 md:grid-cols-12">
-        <div className="flex gap-5 md:col-span-7 md:col-start-6 lg:col-span-6 lg:col-start-7">
-          <LogoMark tone="muted" className="mt-1 hidden size-11 sm:block" />
-          <p className="max-w-[56ch] text-[1.05rem] leading-[1.6] text-ink/75">
-            Your health score says an account is fine. Its contacts, contracts and emails may say otherwise. Churn Graph
-            links six sources into one graph and shows exactly where they disagree, months before the renewal.
+    <section aria-labelledby="hero-title" className="bg-paper pt-10 text-ink md:pt-14">
+      <Container className="grid gap-8 lg:grid-cols-12 lg:items-end">
+        <h1
+          id="hero-title"
+          className="font-heading text-[clamp(2.5rem,6vw,5.4rem)] leading-[1.02] tracking-[-0.02em] lg:col-span-7"
+        >
+          Find churn where your data disagrees.
+        </h1>
+        <div className="lg:col-span-4 lg:col-start-9 lg:pb-3">
+          <p className="max-w-[40ch] text-[0.95rem] leading-[1.7] text-graphite">
+            {siteConfig.name} links your CRM, email, product usage, support tickets, contracts and decision log into
+            one graph, then shows the places where they contradict each other.
           </p>
+          <CtaLink link={siteConfig.primaryCta} className="mt-6" />
         </div>
-      </div>
+      </Container>
 
-      <div className="relative mt-12 md:mt-16">
-        <figure className="overflow-hidden rounded-[28px] bg-ink">
-          <HeroGraph />
-          <figcaption className="px-6 pb-5 text-[0.82rem] text-paper/45 md:px-10">
+      <figure className="mt-12 bg-umber md:mt-16">
+        <div className="mx-auto max-w-[1320px] px-3 py-6 sm:px-8 md:py-10 lg:px-12">
+          <HeroGraph className="hidden md:block" />
+          <HeroEvidenceList className="md:hidden" />
+          <figcaption className="mt-4 text-[0.78rem] text-paper/50">
             Account C01 on October 1, 2026. Fictional data from the KasirNusa case study.
           </figcaption>
-        </figure>
-        <ScrollBadge href="#problem" className="absolute -top-8 right-3 size-16 md:-top-12 md:right-8 md:size-24" />
-      </div>
+        </div>
+      </figure>
     </section>
   );
 }

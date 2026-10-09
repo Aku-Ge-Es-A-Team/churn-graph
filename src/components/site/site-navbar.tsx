@@ -1,69 +1,65 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
 import { routes, siteConfig, type NavLink } from "@/lib/site-config";
 
 type SiteNavbarProps = {
-  /** Tautan tengah. Default: navigasi landing page. */
+  /** Tautan di bawah logo. Default: navigasi landing page. */
   links?: readonly NavLink[];
-  /** Tombol kanan. `null` untuk menyembunyikan. */
-  cta?: NavLink | null;
   /** Tujuan klik logo. */
   homeHref?: string;
   className?: string;
 };
 
 /**
- * Navbar situs yang bisa dipakai ulang: logo kiri, tautan di tengah, CTA bersudut miring di kanan.
+ * Navbar situs yang bisa dipakai ulang: logo di tengah, tautan di baris bawahnya dengan pemisah titik.
  * Di layar kecil tautan dilipat ke menu `<details>` tanpa JavaScript.
  */
-export function SiteNavbar({
-  links = siteConfig.landingNav,
-  cta = siteConfig.primaryCta,
-  homeHref = routes.home,
-  className,
-}: SiteNavbarProps) {
+export function SiteNavbar({ links = siteConfig.landingNav, homeHref = routes.home, className }: SiteNavbarProps) {
   return (
-    <header className={cn("relative z-20 bg-paper", className)}>
-      <nav
-        aria-label="Main"
-        className="mx-auto grid h-16 max-w-[1440px] grid-cols-[1fr_auto] items-center gap-6 px-5 md:grid-cols-[1fr_auto_1fr] md:px-10"
-      >
-        <Link href={homeHref} aria-label={`${siteConfig.name} home`} className="focus-ring justify-self-start rounded-sm">
+    <header className={cn("relative z-20 bg-paper text-ink", className)}>
+      <div className="mx-auto flex max-w-[1320px] items-center justify-between px-5 pt-5 sm:px-8 md:justify-center md:pt-7 lg:px-12">
+        <Link href={homeHref} aria-label={`${siteConfig.name} home`} className="focus-ring rounded-sm">
           <Logo />
         </Link>
 
-        <ul className="hidden items-center gap-12 md:flex">
-          {links.map((link) => (
-            <li key={link.href}>
-              <NavAnchor link={link} className="text-[0.95rem] text-ink/70 transition-colors hover:text-ink" />
-            </li>
-          ))}
-        </ul>
+        {links.length > 0 ? (
+          <details className="group relative md:hidden">
+            <summary className="focus-ring flex size-10 cursor-pointer list-none items-center justify-center rounded-full border border-hairline [&::-webkit-details-marker]:hidden">
+              <span className="sr-only">Open menu</span>
+              <span aria-hidden className="flex w-4 flex-col gap-1">
+                <span className="h-px w-full bg-ink transition-transform group-open:translate-y-[2.5px] group-open:rotate-45" />
+                <span className="h-px w-full bg-ink transition-transform group-open:-translate-y-[2.5px] group-open:-rotate-45" />
+              </span>
+            </summary>
+            <ul className="absolute right-0 top-12 flex w-56 flex-col border border-hairline bg-paper p-2 shadow-[0_18px_40px_-18px_rgb(42_35_29/0.45)]">
+              {links.map((link) => (
+                <li key={link.href}>
+                  <NavAnchor link={link} className="block px-3 py-2.5 text-[0.95rem] hover:bg-sand" />
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
+      </div>
 
-        <div className="flex items-center gap-3 justify-self-end">
-          {cta ? <NavCta link={cta} /> : null}
-
-          {links.length > 0 ? (
-            <details className="group relative md:hidden">
-              <summary className="focus-ring flex size-9 cursor-pointer list-none items-center justify-center rounded-full border border-hairline [&::-webkit-details-marker]:hidden">
-                <span className="sr-only">Menu</span>
-                <span aria-hidden className="flex w-4 flex-col gap-1">
-                  <span className="h-px w-full bg-ink transition-transform group-open:translate-y-[2.5px] group-open:rotate-45" />
-                  <span className="h-px w-full bg-ink transition-transform group-open:-translate-y-[2.5px] group-open:-rotate-45" />
-                </span>
-              </summary>
-              <ul className="absolute right-0 top-12 flex w-52 flex-col rounded-2xl border border-hairline bg-paper p-2 shadow-[0_16px_40px_-16px_rgb(0_0_0/0.3)]">
-                {links.map((link) => (
-                  <li key={link.href}>
-                    <NavAnchor link={link} className="block rounded-xl px-3 py-2 text-ink hover:bg-ink/5" />
-                  </li>
-                ))}
-              </ul>
-            </details>
-          ) : null}
-        </div>
-      </nav>
+      {links.length > 0 ? (
+        <nav aria-label="Main" className="hidden md:block">
+          <ul className="flex items-center justify-center gap-7 py-5 text-[0.72rem] font-medium tracking-[0.14em] uppercase">
+            {links.map((link, i) => (
+              <Fragment key={link.href}>
+                {i > 0 ? (
+                  <li aria-hidden className="size-1 rounded-full bg-ink/40" />
+                ) : null}
+                <li>
+                  <NavAnchor link={link} className="text-ink/80 transition-colors hover:text-ink" />
+                </li>
+              </Fragment>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
     </header>
   );
 }
@@ -78,19 +74,6 @@ export function NavAnchor({ link, className }: { link: NavLink; className?: stri
   ) : (
     <Link href={link.href} className={cls}>
       {link.label}
-    </Link>
-  );
-}
-
-/** CTA berbentuk jajaran genjang: potongan miring menggemakan relasi yang terputus di logo. */
-export function NavCta({ link, className }: { link: NavLink; className?: string }) {
-  return (
-    <Link
-      href={link.href}
-      className={cn("focus-ring group relative inline-flex h-9 items-center px-5 text-[0.92rem] font-medium text-paper", className)}
-    >
-      <span aria-hidden className="absolute inset-0 -skew-x-[16deg] rounded-[5px] bg-ink transition-colors group-hover:bg-signal" />
-      <span className="relative">{link.label}</span>
     </Link>
   );
 }
