@@ -87,6 +87,16 @@ describe("validateAnswer — per-claim rules", () => {
     expect(one({ text: "Transactions dropped 40% to 1.200.", evidenceIds: ["usage-c01"] }).passed).toHaveLength(1);
   });
 
+  test("digits inside identifiers (C10, D-2025-11, v4.12) are not checked as numbers", () => {
+    expect(one({ text: "C10 got 15% under D-2025-11 after v4.12.", evidenceIds: ["email-1"] }).passed).toHaveLength(1);
+    expect(one({ text: "C10 got 20%.", evidenceIds: ["email-1"] }).flagged[0].reasons).toEqual(["number_not_found"]);
+  });
+
+  test("a rupiah amount glued to Rp is still checked", () => {
+    expect(one({ text: "Annual value Rp999.000.000.", evidenceIds: ["contract-c01"] }).flagged[0].reasons).toEqual(["number_not_found"]);
+    expect(one({ text: "Annual value Rp252 million.", evidenceIds: ["contract-c01"] }).passed).toHaveLength(1);
+  });
+
   test('"Rp 252 jt" vs "Rp 252 million" → not flagged', () => {
     expect(one({ text: "Annual value Rp 252 jt.", evidenceIds: ["contract-c01"] }).passed).toHaveLength(1);
   });

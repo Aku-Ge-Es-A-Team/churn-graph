@@ -205,8 +205,21 @@ export const ClaimSchema = z.object({
 });
 export type Claim = z.infer<typeof ClaimSchema>;
 
+export const ASK_STATUSES = ["ok", "partial", "refused", "failed"] as const;
+export type AskStatus = (typeof ASK_STATUSES)[number];
+
+/** Response of POST /api/ask (F-14). `claims` holds only claims that passed the citation validator (F-10). */
 export const AskResponseSchema = z.object({
+  status: z.enum(ASK_STATUSES),
+  /** Assembled only from validated claims (never the LLM's free text). */
   answer: z.string(),
   claims: z.array(ClaimSchema),
+  /** Number of claims the validator discarded (for the drill log). */
+  discarded: z.number(),
+  /** Set when status is "refused" or "failed". */
+  presetSuggestions: z.array(z.string()).optional(),
+  toolsCalled: z.array(z.string()),
+  durationMs: z.number(),
+  note: z.string().optional(),
 });
 export type AskResponse = z.infer<typeof AskResponseSchema>;
