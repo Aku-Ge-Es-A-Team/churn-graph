@@ -1,36 +1,33 @@
-import type { Klaim } from "../../types/graph";
+import type { Claim } from "../../types/graph";
 import type { ValidationResult } from "./validate-citations";
 
-export const PESAN_DITOLAK =
-  "Maaf, saya belum bisa menjawab pertanyaan ini dengan bukti yang dapat diverifikasi dari data. " +
-  "Silakan coba salah satu pertanyaan preset.";
-export const PENANDA_VERIFIKASI = "[perlu verifikasi]";
+export const REFUSAL_MESSAGE =
+  "Sorry, I can't answer this question with evidence that can be verified from the data. " +
+  "Please try one of the preset questions.";
+export const VERIFY_MARKER = "[needs verification]";
 
-export type RenderedAnswer = { jawaban: string; klaim: Klaim[]; ditolak: boolean; catatan?: string };
+export type RenderedAnswer = { answer: string; claims: Claim[]; refused: boolean; note?: string };
 
-// `jawaban` bebas dari LLM SENGAJA diabaikan: LLM bisa menyelipkan kalimat di sana yang tidak
-// ada di `klaim[]`, sehingga lolos ke UI tanpa bukti. Teks tampilan hanya dirakit dari klaim
-// yang sudah lolos validator, jadi setiap kalimat yang dilihat pengguna punya bukti_ids terverifikasi.
-// Urutan: klaim lolos dulu (urutan asli), lalu klaim ditandai (urutan asli) dengan penanda.
+// The free-form `answer` from the LLM is deliberately ignored: the LLM could slip in sentences that are
+// not in `claims`, which would reach the UI without evidence. The display text is assembled only from
+// claims that passed the validator, so every sentence the user sees has verified evidenceIds.
+// Order: passed claims first (original order), then flagged claims (original order) with a marker.
 export function renderAnswer(result: ValidationResult): RenderedAnswer {
-  const ditandai = result.klaimDitandai.map((d) => d.klaim);
-  if (result.klaimLolos.length === 0 && ditandai.length === 0) {
-    return { jawaban: PESAN_DITOLAK, klaim: [], ditolak: true };
+  const flagged = result.flagged.map((d) => d.claim);
+  if (result.passed.length === 0 && flagged.length === 0) {
+    return { answer: REFUSAL_MESSAGE, claims: [], refused: true };
   }
 
-  const lines = [
-    ...result.klaimLolos.map((k) => k.teks.trim()),
-    ...ditandai.map((k) => `${PENANDA_VERIFIKASI} ${k.teks.trim()}`),
-  ];
+  const lines = [...result.passed.map((c) => c.text.trim()), ...flagged.map((c) => `${VERIFY_MARKER} ${c.text.trim()}`)];
 
   const notes: string[] = [];
-  if (ditandai.length) notes.push(`${ditandai.length} klaim perlu verifikasi.`);
-  if (result.klaimDibuang.length) notes.push(`${result.klaimDibuang.length} klaim dibuang karena tidak didukung bukti.`);
+  if (flagged.length) notes.push(`${flagged.length} claim(s) need verification.`);
+  if (result.discarded.length) notes.push(`${result.discarded.length} claim(s) were discarded because the evidence does not support them.`);
 
   return {
-    jawaban: lines.join("\n"),
-    klaim: [...result.klaimLolos, ...ditandai],
-    ditolak: false,
-    ...(notes.length ? { catatan: notes.join(" ") } : {}),
+    answer: lines.join("\n"),
+    claims: [...result.passed, ...flagged],
+    refused: false,
+    ...(notes.length ? { note: notes.join(" ") } : {}),
   };
 }

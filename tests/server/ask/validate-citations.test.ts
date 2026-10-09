@@ -5,169 +5,155 @@ import { validateAnswer, type ValidationResult } from "../../../src/server/ask/v
 function makeRegistry(): EvidenceRegistry {
   const r = new EvidenceRegistry();
   r.add([
-    {
-      id: "email-1",
-      source_file: "emails.csv",
-      source_id: "E-001",
-      teks: "Kami   mempertimbangkan\npindah ke vendor lain karena harga naik 15%.",
-    },
-    { id: "tiket-7", source_file: "tickets.csv", source_id: "T-007", teks: "Printer struk sering macet sejak update." },
-    {
-      id: "usage-c01",
-      source_file: "usage.csv",
-      source_id: "U-C01-2026-08",
-      props: { transaksi: 1200, turun_persen: 40 },
-    },
-    { id: "meeting-2", source_file: "meetings.csv", source_id: "M-002", teks: "Pelanggan bilang “layanan lambat” minggu lalu." },
-    { id: "kontrak-c01", source_file: "contracts.csv", source_id: "K-C01", teks: "Nilai kontrak tahunan Rp 252 juta." },
+    { id: "email-1", source_file: "emails.csv", source_id: "E-001", text: "We   are considering\nmoving to another vendor because prices went up 15%." },
+    { id: "ticket-7", source_file: "tickets.csv", source_id: "T-007", text: "The receipt printer jams often since the update." },
+    { id: "usage-c01", source_file: "usage.csv", source_id: "U-C01-2026-08", props: { transactions: 1200, drop_percent: 40 } },
+    { id: "meeting-2", source_file: "meetings.csv", source_id: "M-002", text: "The customer said “service is slow” last week." },
+    { id: "contract-c01", source_file: "contracts.csv", source_id: "K-C01", text: "Annual contract value Rp 252 million." },
   ]);
   return r;
 }
 
-// Semua hasil dikumpulkan untuk tes properti di akhir file.
+// Every result is collected for the property test at the end of the file.
 const allResults: ValidationResult[] = [];
 function run(input: unknown): ValidationResult {
   const result = validateAnswer(input, makeRegistry());
   allResults.push(result);
   return result;
 }
-const one = (klaim: unknown) => run({ jawaban: "x", klaim: [klaim] });
+const one = (claim: unknown) => run({ answer: "x", claims: [claim] });
 
-describe("validateAnswer — aturan per klaim", () => {
-  test("bukti valid dan kutipan substring → lolos", () => {
-    const r = one({ teks: "Pelanggan mempertimbangkan pindah vendor.", bukti_ids: ["email-1"], kutipan: "pindah ke vendor lain" });
-    expect(r.klaimLolos).toHaveLength(1);
+describe("validateAnswer — per-claim rules", () => {
+  test("valid evidence and a substring quote → passes", () => {
+    const r = one({ text: "The customer is considering a move.", evidenceIds: ["email-1"], quote: "moving to another vendor" });
+    expect(r.passed).toHaveLength(1);
     expect(r.valid).toBe(true);
   });
 
-  test("bukti_ids kosong → dibuang tanpa_bukti", () => {
-    const r = one({ teks: "Pelanggan akan churn.", bukti_ids: [] });
-    expect(r.klaimDibuang[0].alasan).toEqual(["tanpa_bukti"]);
+  test("empty evidenceIds → discarded as no_evidence", () => {
+    const r = one({ text: "The customer will churn.", evidenceIds: [] });
+    expect(r.discarded[0].reasons).toEqual(["no_evidence"]);
     expect(r.valid).toBe(false);
   });
 
-  test("satu ID palsu di antara ID valid → dibuang bukti_tidak_dikenal, ID palsu disebut", () => {
-    const r = one({ teks: "Pelanggan kecewa.", bukti_ids: ["email-1", "palsu-9"] });
-    expect(r.klaimDibuang[0].alasan).toEqual(["bukti_tidak_dikenal"]);
-    expect(r.klaimDibuang[0].idBermasalah).toEqual(["palsu-9"]);
+  test("one fake ID among valid ones → discarded as unknown_evidence and the ID is reported", () => {
+    const r = one({ text: "The customer is unhappy.", evidenceIds: ["email-1", "fake-9"] });
+    expect(r.discarded[0].reasons).toEqual(["unknown_evidence"]);
+    expect(r.discarded[0].offendingIds).toEqual(["fake-9"]);
   });
 
-  test("kutipan karangan → dibuang kutipan_tidak_cocok", () => {
-    const r = one({ teks: "Pelanggan kecewa.", bukti_ids: ["email-1"], kutipan: "akan membatalkan kontrak bulan depan" });
-    expect(r.klaimDibuang[0].alasan).toEqual(["kutipan_tidak_cocok"]);
+  test("an invented quote → discarded as quote_mismatch", () => {
+    const r = one({ text: "The customer is unhappy.", evidenceIds: ["email-1"], quote: "will cancel the contract next month" });
+    expect(r.discarded[0].reasons).toEqual(["quote_mismatch"]);
   });
 
-  test("kutipan sama tapi spasi/baris baru berbeda → lolos", () => {
-    const r = one({ teks: "Pelanggan mempertimbangkan pindah.", bukti_ids: ["email-1"], kutipan: "Kami mempertimbangkan pindah" });
-    expect(r.klaimLolos).toHaveLength(1);
+  test("same quote with different whitespace/newlines → passes", () => {
+    const r = one({ text: "The customer is considering a move.", evidenceIds: ["email-1"], quote: "We are considering moving" });
+    expect(r.passed).toHaveLength(1);
   });
 
-  test("tanda kutip lengkung vs lurus → lolos", () => {
-    const r = one({ teks: "Pelanggan mengeluh layanan.", bukti_ids: ["meeting-2"], kutipan: 'bilang "layanan lambat"' });
-    expect(r.klaimLolos).toHaveLength(1);
+  test("curly vs straight quotation marks → passes", () => {
+    const r = one({ text: "The customer complains about service.", evidenceIds: ["meeting-2"], quote: 'said "service is slow"' });
+    expect(r.passed).toHaveLength(1);
   });
 
-  test("kutipan hanya beda huruf besar-kecil → dibuang", () => {
-    const r = one({ teks: "Pelanggan mempertimbangkan pindah.", bukti_ids: ["email-1"], kutipan: "kami mempertimbangkan pindah" });
-    expect(r.klaimDibuang[0].alasan).toEqual(["kutipan_tidak_cocok"]);
+  test("a quote that differs only in letter case → discarded", () => {
+    const r = one({ text: "The customer is considering a move.", evidenceIds: ["email-1"], quote: "we are considering moving" });
+    expect(r.discarded[0].reasons).toEqual(["quote_mismatch"]);
   });
 
-  test("kutipan merujuk bukti tanpa teks → dibuang kutipan_tanpa_teks_sumber", () => {
-    const r = one({ teks: "Penggunaan turun.", bukti_ids: ["usage-c01"], kutipan: "transaksi turun drastis" });
-    expect(r.klaimDibuang[0].alasan).toEqual(["kutipan_tanpa_teks_sumber"]);
+  test("a quote that cites evidence without text → discarded as quote_without_source_text", () => {
+    const r = one({ text: "Usage dropped.", evidenceIds: ["usage-c01"], quote: "transactions dropped sharply" });
+    expect(r.discarded[0].reasons).toEqual(["quote_without_source_text"]);
   });
 
-  test("kutipan < 8 karakter → ditandai, bukan dibuang", () => {
-    const r = one({ teks: "Pelanggan menyebut harga.", bukti_ids: ["email-1"], kutipan: "harga" });
-    expect(r.klaimDibuang).toHaveLength(0);
-    expect(r.klaimLolos).toHaveLength(0);
-    expect(r.klaimDitandai[0].alasan).toEqual(["kutipan_terlalu_pendek"]);
+  test("a quote shorter than 8 characters → flagged, not discarded", () => {
+    const r = one({ text: "The customer mentions prices.", evidenceIds: ["email-1"], quote: "prices" });
+    expect(r.discarded).toHaveLength(0);
+    expect(r.passed).toHaveLength(0);
+    expect(r.flagged[0].reasons).toEqual(["quote_too_short"]);
   });
 
-  test("angka tidak ada di bukti → ditandai angka_tidak_ditemukan", () => {
-    const r = one({ teks: "Harga naik 20%.", bukti_ids: ["email-1"] });
-    expect(r.klaimDitandai[0].alasan).toEqual(["angka_tidak_ditemukan"]);
+  test("a number that is not in the evidence → flagged as number_not_found", () => {
+    const r = one({ text: "Prices go up 20%.", evidenceIds: ["email-1"] });
+    expect(r.flagged[0].reasons).toEqual(["number_not_found"]);
   });
 
-  test('"15 %" vs "15%" → tidak ditandai', () => {
-    const r = one({ teks: "Harga naik 15 %.", bukti_ids: ["email-1"] });
-    expect(r.klaimLolos).toHaveLength(1);
+  test('"15 %" vs "15%" → not flagged', () => {
+    expect(one({ text: "Prices go up 15 %.", evidenceIds: ["email-1"] }).passed).toHaveLength(1);
   });
 
-  test("angka ditemukan di props bukti → tidak ditandai", () => {
-    const r = one({ teks: "Transaksi turun 40% menjadi 1.200.", bukti_ids: ["usage-c01"] });
-    expect(r.klaimLolos).toHaveLength(1);
+  test("a number found in the evidence props → not flagged", () => {
+    expect(one({ text: "Transactions dropped 40% to 1.200.", evidenceIds: ["usage-c01"] }).passed).toHaveLength(1);
   });
 
-  test('"Rp 252 jt" vs "Rp 252 juta" → tidak ditandai', () => {
-    const r = one({ teks: "Nilai tahunan Rp 252 jt.", bukti_ids: ["kontrak-c01"] });
-    expect(r.klaimLolos).toHaveLength(1);
+  test('"Rp 252 jt" vs "Rp 252 million" → not flagged', () => {
+    expect(one({ text: "Annual value Rp 252 jt.", evidenceIds: ["contract-c01"] }).passed).toHaveLength(1);
   });
 
-  test("kutipan asli dari bukti A tapi klaim hanya merujuk bukti B → dibuang", () => {
-    const r = one({ teks: "Pelanggan ingin pindah.", bukti_ids: ["tiket-7"], kutipan: "pindah ke vendor lain" });
-    expect(r.klaimDibuang[0].alasan).toEqual(["kutipan_tidak_cocok"]);
+  test("a real quote from evidence A while the claim cites only evidence B → discarded", () => {
+    const r = one({ text: "The customer wants to leave.", evidenceIds: ["ticket-7"], quote: "moving to another vendor" });
+    expect(r.discarded[0].reasons).toEqual(["quote_mismatch"]);
   });
 
-  test("campuran klaim valid dan tidak valid → valid true, daftar terpisah", () => {
+  test("a mix of valid and invalid claims → valid is true and the lists are separate", () => {
     const r = run({
-      klaim: [
-        { teks: "Printer sering macet.", bukti_ids: ["tiket-7"] },
-        { teks: "Pelanggan pasti churn.", bukti_ids: [] },
-        { teks: "Harga naik 99%.", bukti_ids: ["email-1"] },
+      claims: [
+        { text: "The printer jams often.", evidenceIds: ["ticket-7"] },
+        { text: "The customer will certainly churn.", evidenceIds: [] },
+        { text: "Prices go up 99%.", evidenceIds: ["email-1"] },
       ],
     });
     expect(r.valid).toBe(true);
-    expect(r.klaimLolos.map((k) => k.teks)).toEqual(["Printer sering macet."]);
-    expect(r.klaimDitandai.map((d) => d.klaim.teks)).toEqual(["Harga naik 99%."]);
-    expect(r.klaimDibuang).toHaveLength(1);
+    expect(r.passed.map((c) => c.text)).toEqual(["The printer jams often."]);
+    expect(r.flagged.map((d) => d.claim.text)).toEqual(["Prices go up 99%."]);
+    expect(r.discarded).toHaveLength(1);
   });
 });
 
-describe("validateAnswer — input rusak dari LLM", () => {
-  const rusak: unknown[] = [
+describe("validateAnswer — broken LLM input", () => {
+  const broken: unknown[] = [
     null,
     undefined,
     "",
-    "jawaban teks biasa",
+    "plain text answer",
     42,
     [],
     {},
-    { jawaban: "x" },
-    { klaim: "bukan array" },
-    { klaim: null },
+    { answer: "x" },
+    { claims: "not an array" },
+    { claims: null },
     {
-      klaim: [
+      claims: [
         null,
         1,
         "x",
-        { teks: "tanpa bukti_ids" },
-        { bukti_ids: ["email-1"] },
-        { teks: "", bukti_ids: ["email-1"] },
-        { teks: "   ", bukti_ids: ["email-1"] },
-        { teks: 5, bukti_ids: "email-1" },
-        { teks: "id bukan string", bukti_ids: [1, 2] },
+        { text: "no evidenceIds" },
+        { evidenceIds: ["email-1"] },
+        { text: "", evidenceIds: ["email-1"] },
+        { text: "   ", evidenceIds: ["email-1"] },
+        { text: 5, evidenceIds: "email-1" },
+        { text: "ids are not strings", evidenceIds: [1, 2] },
       ],
     },
   ];
 
-  test.each(rusak.map((x) => [x]))("tidak melempar error dan hasil aman: %p", (input: unknown) => {
+  test.each(broken.map((x) => [x]))("does not throw and the result is safe: %p", (input: unknown) => {
     const r = run(input);
     expect(r.valid).toBe(false);
-    expect(r.klaimLolos).toEqual([]);
-    expect(r.klaimDitandai).toEqual([]);
+    expect(r.passed).toEqual([]);
+    expect(r.flagged).toEqual([]);
   });
 });
 
-describe("properti", () => {
-  test("tidak ada klaim lolos/ditandai dengan bukti_ids kosong atau di luar registry", () => {
+describe("property", () => {
+  test("no passed or flagged claim has empty evidenceIds or IDs outside the registry", () => {
     const known = new Set(makeRegistry().ids());
     expect(allResults.length).toBeGreaterThan(20);
     for (const r of allResults) {
-      const tampil = [...r.klaimLolos, ...r.klaimDitandai.map((d) => d.klaim)];
-      for (const k of tampil) {
-        expect(k.bukti_ids.length).toBeGreaterThan(0);
-        for (const id of k.bukti_ids) expect(known.has(id)).toBe(true);
+      for (const c of [...r.passed, ...r.flagged.map((d) => d.claim)]) {
+        expect(c.evidenceIds.length).toBeGreaterThan(0);
+        for (const id of c.evidenceIds) expect(known.has(id)).toBe(true);
       }
     }
   });
