@@ -9,8 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-serif);
-  --font-serif: var(--font-serif);
+  --font-heading: var(--font-display);
   /* Brand Churn Graph (Modern Minimal) */
   --color-ink: var(--ink);
   --color-paper: var(--paper);
@@ -152,5 +151,13 @@
   }
   html {
     @apply font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading;
   }
 }

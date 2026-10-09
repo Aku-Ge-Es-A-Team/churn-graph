@@ -4,7 +4,7 @@ import Link from "next/link";
 import { routes } from "@/lib/site-config";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LEVEL_STYLES, filterFocus, formatCompactIdr, formatFullIdr, legendFromRows, renewalLabel, signalLabel } from "@/lib/ranking";
 import { FOCUS_ACCOUNT_IDS, type RiskRow } from "@/types/graph";
@@ -66,7 +66,7 @@ export function RankingBoard({ rows }: { rows: RiskRow[] }) {
                 <TableRow key={row.account} className={row.diverges ? LEVEL_STYLES[row.level].row : undefined} data-account={row.account}>
                   <TableCell className="tabular-nums text-muted-foreground">{rows.indexOf(row) + 1}</TableCell>
                   <TableCell>
-                    <Link href={routes.account(row.account)} className="font-medium underline-offset-4 hover:underline">
+                    <Link href={routes.account(row.account)} className={buttonVariants({ variant: "outline", size: "sm", className: "h-auto max-w-full justify-start py-1 text-left whitespace-normal" })}>
                       {row.account} · {row.name}
                     </Link>
                     <div className="text-xs text-muted-foreground">score {row.score.toFixed(2)}</div>

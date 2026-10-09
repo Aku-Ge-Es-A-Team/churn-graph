@@ -37,7 +37,7 @@ export function SiteFooter() {
 
       <p
         aria-hidden
-        // Ukuran dari lebar layar agar wordmark Playfair selalu muat satu baris, tanpa terpotong.
+        // Ukuran dari lebar layar agar wordmark selalu muat satu baris, tanpa terpotong.
         className="mt-6 select-none whitespace-nowrap pb-[2vw] text-center font-heading text-[calc((100vw-2rem)/6.6)] leading-[1] tracking-[-0.02em] text-paper"
       >
         {siteConfig.name}
