@@ -1,5 +1,5 @@
 # 05 -- Skor, level, rupiah + Dashboard vs Temuan
-> ID PRD: F-05 · Prioritas: Must · Penanggung jawab: Dio (Backend & AI) · Estimasi: 1,5 jam-orang (PRD); total task 2,5 jam · Status: Belum dimulai
+> ID PRD: F-05 · Prioritas: Must · Penanggung jawab: Dio (Backend & AI) · Estimasi: 1,5 jam-orang (PRD); total task 2,5 jam · Status: Implementasi selesai dan terverifikasi (golden terhadap Aura, 2026-10-09); menunggu review PR
 
 ## 1. Ringkasan Fitur
 - Apa: Modul skoring TypeScript yang mengubah sinyal F-04 menjadi skor, level (Kritis/Tinggi/Waspada/Aman), nilai rupiah berisiko (Estimasi), dan penanda divergensi "Dashboard vs Temuan" untuk 40 akun, diekspos lewat `getRanking()` dalam bentuk `RiskRow[]`.
@@ -87,6 +87,13 @@
 - 🔁 USULAN PERUBAHAN: tidak ada.
 - Risiko: golden test tidak lulus pada J8–9 karena bobot/ambang salah, atau sinyal F-04 telat -- mitigasi/fallback: kalibrasi dilakukan setelah sinyal ada; bila F-04 telat, T05-02/T05-04 tetap selesai dengan data tiruan.
 - Risiko: juri mempertanyakan angka rupiah (A15) -- mitigasi: label "Estimasi" + p terlihat di UI; siapkan jawaban.
+
+- ✅ KEPUTUSAN (2026-10-09, Adrian): semua identifier, konten aplikasi, dan UI memakai bahasa Inggris; dokumentasi tetap Indonesia. Kosakata graph yang tersimpan di Aura (label `Akun`, `Sinyal`, ..., tipe relasi, kode sinyal, nama properti dataset) TIDAK diterjemahkan karena ditetapkan dokumen produk dan sudah ada di data; pemetaannya ada di `docs/glossary.md`. Tipe di `src/types/graph.ts` kini berbahasa Inggris (mis. `RiskRow`: `account`, `name`, `dashboard`, `level`, `score`, `diverges`, `renewalDays`, `annualValue`, `atRiskValue`, `p`, `topSignals`; level `Critical/High/Watch/Safe` = Kritis/Tinggi/Waspada/Aman, warna dashboard `Green/Yellow/Red` = Hijau/Kuning/Merah).
+- ✅ KEPUTUSAN (2026-10-09, Adrian): tugas milik Dio untuk F-05 s.d. F-11 dikerjakan Adrian; pembagian penanggung jawab di header diabaikan sementara.
+- ✅ HASIL: `src/server/scoring/{config,score,rank}.ts` (fungsi murni) + `src/server/queries/risk.ts` (`fetchRanking`, `fetchSignals`, `fetchAccounts`) + `src/server/queries/index.ts` (`getRanking({ focus })`, `getSignals`, dibungkus `'use cache'` + `cacheLife('minutes')`). Parameter diganti nama dari `fokus` menjadi `focus`. Tes: `tests/server/scoring/*.test.ts` (unit) dan `tests/golden/ranking.test.ts` (Aura, baca-saja).
+- ✅ HASIL GOLDEN (data nyata): 40 baris, bukan prospek. Urutan fokus: C01 skor 10 (Critical, diverges), C04 skor 6 (High, diverges), C03 skor 5 (High), C05 skor 4 (Watch), C02 dan C06 Safe; tidak ada akun di luar C01–C06 yang tidak Safe. Rupiah (Estimasi): C01 Rp 89.964.000 (p 0,6), C03 Rp 27.216.000 (p 0,4). C04 H-35 terhadap `SNAPSHOT_DATE` 2026-10-01.
+- ✅ KALIBRASI (T05-01/T05-05): faktor renewal mengikuti dokumen (≤60 hari 1,5; ≤120 hari 1,25; selebihnya 1,0). Ambang level: Critical ≥ 8, High ≥ 4,5, Watch ≥ 2. High dipasang 4,5 (bukan 5) agar tidak ada akun golden tepat di batas: C03 = 5 (High) dan C05 = 4 (Watch) berselisih 1 poin. Kepekaan: bila bobot sinyal C03/C05 berubah, ambang ini perlu ditinjau ulang.
+- 🔁 USULAN PERUBAHAN: konstanta `FOCUS_ACCOUNT_IDS` (C01–C06) dan nilai `P_BY_LEVEL` ada di `src/types/graph.ts` agar UI dan server memakai satu sumber; pemetaan warna dashboard data (Hijau/Kuning/Merah) → `Green/Yellow/Red` dilakukan di batas query dan melempar error bila ada nilai tak dikenal.
 
 ## 10. Definition of Done
 - [ ] Semua acceptance criteria di section 3 lolos uji di section 8
