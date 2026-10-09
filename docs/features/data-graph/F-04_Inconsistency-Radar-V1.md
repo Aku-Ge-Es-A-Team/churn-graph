@@ -1,5 +1,5 @@
 # 04 -- Inconsistency Radar: mesin aturan v1
-> ID PRD: F-04 · Prioritas: Must · Penanggung jawab: Adrian (Data Graph) + Dio (Backend) · Estimasi: 3,5 jam-orang (PRD) · Status: Belum dimulai
+> ID PRD: F-04 · Prioritas: Must · Penanggung jawab: Adrian (Data Graph) + Dio (Backend) · Estimasi: 3,5 jam-orang (PRD) · Status: Implementasi selesai; golden hijau terhadap Aura (gerbang J8 lolos untuk sisi data-graph); kode/bobot menunggu konfirmasi Dio (A13)
 
 ## 1. Ringkasan Fitur
 - Apa: runner `scripts/signals.ts` menjalankan satu file Cypher per aturan di `cypher/signals/*.cypher` (8 aturan + penekan Z1–Z3, generik untuk 40 akun) dan menulis hasilnya sebagai `(:Sinyal)-[:PADA]->(:Akun)` dan `(:Sinyal)-[:BUKTI]->(:Entitas)` dengan kontrak `{akun, kode, bobot, bukti_ids, fakta, sejak}`.
@@ -74,13 +74,13 @@ Kode cadangan (ditetapkan di sini, diimplementasikan file lain, tidak dibuat ole
 ## 6. Breakdown Task Implementasi
 | ID | Task | Layer | Estimasi (jam) | Bergantung pada | Output terverifikasi |
 | --- | --- | --- | --- | --- | --- |
-| T04-01 | Kunci kontrak dan kamus: konfirmasi daftar kode/bobot ke Dio (A13), kamus gejala R3 (PRD §8 pertanyaan 3 dan 4); tulis `tests/golden/signals.test.ts` lebih dulu (C01, C04, C02, C06; bentuk kontrak; tanpa ID hard-coded). | Test | 0,5 | 03 (F-03) | Tes ada dan gagal dengan alasan "belum ada Sinyal"; kode sinyal di section 4 disetujui atau dicatat sebagai perubahan. |
-| T04-02 | Runner `scripts/signals.ts` (PIC Dio): baca `cypher/signals/*.cypher`, jalankan dengan `$snapshot`, validasi kontrak, tulis `Sinyal` + `PADA` + `BUKTI` dengan ID deterministik (⚠️ ASUMSI), hapus `Sinyal` lama miliknya; script `signals`. | BE | 0,75 | T04-01, 02 (F-02) | `bun run signals` dengan satu aturan contoh menulis `Sinyal`; baris yang melanggar kontrak menghentikan runner dengan pesan; dua kali run → jumlah sama. |
-| T04-03 | Aturan 1–3: `champion_keluar`, `janji_dilanggar`, `kompetitor_disebut` (bukti_ids interaksi pamit bersifat `OPTIONAL MATCH`). | DB | 1,0 | T04-02 | Untuk C01: `CHAMPION_KELUAR` dengan `fakta.kontak = K017`; `JANJI_DILANGGAR` memuat FEAT-07 di `bukti_ids`; `KOMPETITOR_DISEBUT` terpicu. |
-| T04-04 | Aturan 4–5: `outreach_tak_berbalas`, `risiko_pembayaran`. | DB | 0,75 | T04-02 | Untuk C04: kedua kode terpicu (3 email renewal tak berbalas, 2 kali telat bayar). |
-| T04-05 | Aturan 6–8: `tiket_bug_tak_tertaut`, `anomali_usage_rilis_bug`, `tiket_tak_direproduksi`. | DB | 1,0 | T04-02, 03 (F-03) | Untuk C03 dan C05: `ANOMALI_USAGE_RILIS_BUG` dan `TIKET_BUG_TAK_TERTAUT` terpicu; tiket ber-`bug_id` tidak masuk `TIKET_BUG_TAK_TERTAUT`. |
-| T04-06 | Penekan Z1–Z3 (filter di aturan terkait, tanpa ID hard-coded). | DB | 0,5 | T04-03, T04-04, T04-05 | C02: 9 tiket `permintaan_fitur` tidak menghasilkan sinyal negatif; C06 tanpa sinyal. |
-| T04-07 | Kalibrasi bobot dan uji 40 akun: jalankan runner ke seluruh akun, baca daftar akun non-fokus yang ikut tersorot, sesuaikan bobot/ambang; golden hijau. | Test | 0,5 | T04-06 | `bun run test:golden` hijau untuk `signals.test.ts` (gerbang J8); alasan sinyal akun non-fokus masuk akal. |
+$1 **Status: selesai** -- `tests/golden/signals.test.ts` ditulis dulu (gagal "Sinyal belum ada" sebelum aturan); konfirmasi kode/bobot ke Dio **belum** (A13). |
+$1 **Status: selesai** (dikerjakan Adrian; PIC dokumen = Dio -- perlu ditinjau Dio) -- `scripts/signals.ts`: validasi kontrak sebelum menulis, ID `SIG-<akun>-<kode>-<n>`, hapus hanya Sinyal milik `cypher/signals/`; dua run → jumlah sama. |
+$1 **Status: selesai** -- C01: `CHAMPION_KELUAR` (K017 → P01, bukti I0290), `JANJI_DILANGGAR` (FEAT-07, D-2025-11), `KOMPETITOR_DISEBUT` (KasirPro, K134). |
+$1 **Status: selesai** -- C04: `OUTREACH_TAK_BERBALAS` (I0288, I0319, I0339) dan `RISIKO_PEMBAYARAN` (2× telat, D-2026-03, T0420). |
+$1 **Status: selesai** -- C03 dan C05: `ANOMALI_USAGE_RILIS_BUG`, `TIKET_BUG_TAK_TERTAUT` (8 dan 6 tiket), `TIKET_TAK_DIREPRODUKSI` (2 tiket masing-masing). |
+$1 **Status: selesai** -- Z1 di aturan 6 dan 8 (`kategori <> 'permintaan_fitur'`), Z2 sebagai `tafsir: 'bug, bukan churn'` di aturan 7, Z3 lewat `template = false`; C02 dan C06 tanpa sinyal. |
+$1 **Status: selesai** -- sapuan 40 pelanggan: hanya C01, C03, C04, C05 bersinyal; 0 akun non-fokus tersorot. Bobot awal dipertahankan (tidak perlu kalibrasi). |
 | | **Total 5,0 jam (estimasi PRD: 3,5 jam)** -- selisih +43%, lihat ⚠️ ASUMSI di section 9. | | | | |
 
 ## 7. Dependensi
@@ -115,6 +115,13 @@ Kode cadangan (ditetapkan di sini, diimplementasikan file lain, tidak dibuat ole
 - Risiko: golden test tidak lulus di J8 (aturan generik salah tangkap, kamus R3 belum disepakati) -- mitigasi/fallback: kunci kamus di J0,5, tulis golden sebelum aturan (T04-01); gerbang J8: D berhenti di F-03 dan F-17 batal.
 - Risiko: aturan terlalu longgar menyorot akun non-fokus -- mitigasi/fallback: uji 40 akun di T04-07 (uji termurah di Brief §5).
 - Risiko: aturan berbasis template (janji/kompetitor) tertipu 318 interaksi template -- mitigasi/fallback: Z3 dan `template=false`.
+
+- ✅ HASIL T04-07 (uji 40 akun): 11 Sinyal -- C01 ×3 (bobot 8), C03 ×3 (4), C04 ×2 (4), C05 ×3 (4); 36 pelanggan lain tanpa sinyal, termasuk C02 dan C06. Tidak ada akun non-fokus yang tersorot, jadi aturan tidak terlalu longgar. Catatan untuk F-05: C03 dan C05 bersinyal sama (jumlah bobot 4 masing-masing); selisih level Tinggi vs Waspada di golden PRD harus datang dari faktor renewal (C03 H-111, C05 H-191) atau ambang level -- keputusan Dio.
+- ⚠️ ASUMSI (kontrak `fakta`): disimpan sebagai string JSON (sesuai ⚠️ ASUMSI di section 3). Cocok dengan `SinyalSchema.fakta: z.string()` di `src/types/graph.ts` milik Dio; golden membaca `JSON.parse(fakta).kontak`. `sejak` disimpan sebagai `date` Neo4j -- pembaca TypeScript harus mengubahnya ke string ISO (lihat `keJson` di `scripts/signals.ts`).
+- ⚠️ ASUMSI (ambang yang saya pilih, belum disepakati): `OUTREACH_TAK_BERBALAS` ≥ 2 email non-template tak berbalas dan klien tidak mengirim email sesudah yang pertama; `RISIKO_PEMBAYARAN` keterlambatan ≥ 2 (data: hanya C04; C07, C20, C29, C32, C35 = 1); `TIKET_BUG_TAK_TERTAUT` ≥ 3 tiket; `sejak` untuk risiko pembayaran = keputusan terkait tertua, atau snapshot − 12 bulan. Pamit CHAMPION_KELUAR dikenali lewat heuristik nama-email (sampai F-16 menyelesaikan email lama).
+- ⚠️ ASUMSI: hanya akun `tipe = 'pelanggan'` yang dinilai (prospek P02 menyebut KasirPro di I0296/I0348 tetapi bukan target peringkat churn).
+- 🔁 USULAN PERUBAHAN: `scripts/demo-radar.ts` (alat bantu baca-saja untuk validasi manual); konstruksi ID Sinyal `SIG-<akun>-<kode>-<n>` dipakai sebagai ID deterministik (⚠️ ASUMSI tertulis, belum disepakati dengan Dio); T04-02 dikerjakan Adrian padahal PIC di dokumen = Dio.
+- Titik koordinasi dengan Dio: (1) kode/bobot A13; (2) `fakta` string JSON; (3) `sejak` bertipe date; (4) F-05 membaca `(:Sinyal)-[:PADA]->(:Akun)` dan `[:BUKTI]` -- belum ada `getSignals`; (5) F-08 `getAccountEvidence` dapat memakai `BUKTI` + induced subgraph; (6) `readCypher` belum memakai `cypher-guard.ts` (milik F-10).
 
 ## 10. Definition of Done
 - [ ] Semua acceptance criteria di section 3 lolos uji di section 8
