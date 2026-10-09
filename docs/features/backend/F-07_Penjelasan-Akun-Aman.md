@@ -1,5 +1,5 @@
 # 06 -- Penjelasan akun aman / konsisten
-> ID PRD: F-07 · Prioritas: Must · Penanggung jawab: Dio (Backend & AI) + Tegar (Frontend) · Estimasi: 0,5 jam-orang (PRD); total task 1,5 jam · Status: Belum dimulai
+> ID PRD: F-07 · Prioritas: Must · Penanggung jawab: Dio (Backend & AI) + Tegar (Frontend) · Estimasi: 0,5 jam-orang (PRD); total task 1,5 jam · Status: Implementasi selesai dan terverifikasi (2026-10-09); T06-02 tetap terblokir (🔁); menunggu review PR
 
 ## 1. Ringkasan Fitur
 - Apa: Penjelasan untuk akun yang tidak berisiko: status "konsisten", daftar aturan F-04 yang sudah dicek beserta nilainya, dan penjelasan penekan Z1 (mis. 9 tiket C02 adalah usulan fitur). Berlaku generik untuk semua akun, bukan hanya C01–C06.
@@ -76,6 +76,12 @@
 - 🔁 USULAN PERUBAHAN: perluas kontrak keluaran F-04 (atau runner sinyal) agar mencatat hasil pemeriksaan aturan yang TIDAK terpicu (`{akun, kode, terpicu, nilai}`) -- alasan: AC "daftar aturan yang sudah dicek beserta nilainya" tidak bisa dipenuhi dari kontrak `{akun, kode, bobot, bukti_ids, fakta, sejak}` yang hanya memuat aturan terpicu. Tanpa ini, T06-02 terblokir dan daftar hanya menampilkan kode + status.
 - Risiko: Z1 salah menangkap tiket sehingga C02 tampil berisiko atau penjelasan salah -- mitigasi: golden test F-04 untuk C02 + uji 9 tiket di file ini.
 - Risiko: pemilik FE (Tegar) belum punya panel di skeleton -- mitigasi: fixture C02 disiapkan di awal T06-03.
+
+- ✅ KEPUTUSAN (2026-10-09, Adrian): semua identifier, konten aplikasi, dan UI memakai bahasa Inggris; dokumentasi tetap Indonesia. Kosakata graph yang tersimpan di Aura (label `Akun`, `Sinyal`, ..., tipe relasi, kode sinyal, nama properti dataset) TIDAK diterjemahkan karena ditetapkan dokumen produk dan sudah ada di data; pemetaannya ada di `docs/glossary.md`. Tipe di `src/types/graph.ts` kini berbahasa Inggris (mis. `RiskRow`: `account`, `name`, `dashboard`, `level`, `score`, `diverges`, `renewalDays`, `annualValue`, `atRiskValue`, `p`, `topSignals`; level `Critical/High/Watch/Safe` = Kritis/Tinggi/Waspada/Aman, warna dashboard `Green/Yellow/Red` = Hijau/Kuning/Merah).
+- ✅ KEPUTUSAN (2026-10-09, Adrian): tugas milik Dio untuk F-05 s.d. F-11 dikerjakan Adrian; pembagian penanggung jawab di header diabaikan sementara.
+- ✅ HASIL: `src/server/queries/explanation.ts` (`buildExplanation` murni + `fetchAccountExplanation`), panel `src/components/account/explanation-panel.tsx` di `/akun/[id]`, dan `getAccountDetail` (mengembalikan `null` bila akun tidak dikenal → halaman not-found). Tes: `tests/golden/explanation.test.ts`: C02 konsisten dengan tepat 9 ID tiket Z1; C06 konsisten; C01 `at_risk` dengan 3 aturan terpicu; sapuan 40 akun tanpa error; status konsisten ⇔ level Safe.
+- ⛔ T06-02 (nilai per aturan yang tidak terpicu) tetap terblokir menunggu 🔁 di section ini: daftar aturan hanya memuat kode + status (terpicu/clear) + bobot bila terpicu; satu-satunya nilai yang ditampilkan untuk aturan tidak terpicu adalah penjelasan Z1 (jumlah dan ID tiket).
+- ⚠️ ASUMSI: halaman akun yang tidak ada merender halaman not-found, tetapi kode HTTP-nya 200 karena konten di-stream di dalam `Suspense` (batasan Cache Components); `GET /api/evidence` mengembalikan 404 sungguhan.
 
 ## 10. Definition of Done
 - [ ] Semua acceptance criteria di section 3 lolos uji di section 8
