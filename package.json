@@ -12,7 +12,7 @@
     "load": "bun scripts/load.ts",
     "derive": "bun scripts/run-cypher.ts cypher/derive",
     "signals": "bun scripts/signals.ts",
-    "rebuild": "bun run etl && bun run load && bun run derive && bun run signals",
+    "rebuild": "bun run etl && bun scripts/load.ts --rebuild && bun run derive && bun run signals",
     "test:golden": "bun test tests/golden"
   },
   "engines": {
