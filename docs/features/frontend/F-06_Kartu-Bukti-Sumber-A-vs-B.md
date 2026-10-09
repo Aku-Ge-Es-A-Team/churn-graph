@@ -1,5 +1,5 @@
 # 12 -- Kartu bukti "Sumber A vs Sumber B"
-> ID PRD: F-06 · Prioritas: Must · Penanggung jawab: Tegar (Frontend) · Estimasi: 1 jam-orang (PRD) · Status: Belum dimulai
+> ID PRD: F-06 · Prioritas: Must · Penanggung jawab: Tegar (Frontend) · Estimasi: 1 jam-orang (PRD) · Status: Implementasi selesai dan terverifikasi (2026-10-09); slot panel F-12 diisi daftar node sementara; T12-05 terblokir (🔁)
 
 ## 1. Ringkasan Fitur
 - Apa: kartu di panel samping penampil graph yang menampilkan ≥2 catatan dari sumber berbeda berdampingan (kolom Sumber A dan Sumber B), lengkap dengan nama file, ID, dan tanggal -- contoh utama: "champion tercatat di CRM" vs "riwayat kerja: pindah ke P01" untuk C01.
@@ -80,6 +80,11 @@
 - Risiko: pengelompokan generik menampilkan catatan yang tidak bertentangan -- mitigasi/fallback: judul netral, batasi kolom ke dua grup pertama + "Sumber lain"; untuk demo cukup kartu champion C01; ajukan 🔁 bila perlu.
 - Risiko: `source_file` kosong pada payload -- mitigasi/fallback: jalur "—" di T12-01; sampaikan ke Dio (07) karena AC F-08 mensyaratkan `source_file` pada setiap relasi.
 - Risiko: beban Tegar -- total FE Must 11,5 jam + 2,5 jam skeleton/fixture di 00 -- mitigasi: kartu adalah item pertama yang disederhanakan (tanpa "Sumber lain") bila J10 terlewat.
+
+- ✅ KEPUTUSAN (2026-10-09, Adrian): semua identifier, konten aplikasi, dan UI memakai bahasa Inggris; dokumentasi tetap Indonesia. Kosakata graph yang tersimpan di Aura (label `Akun`, `Sinyal`, ..., tipe relasi, kode sinyal, nama properti dataset) TIDAK diterjemahkan karena ditetapkan dokumen produk dan sudah ada di data; pemetaannya ada di `docs/glossary.md`. Tipe di `src/types/graph.ts` kini berbahasa Inggris (mis. `RiskRow`: `account`, `name`, `dashboard`, `level`, `score`, `diverges`, `renewalDays`, `annualValue`, `atRiskValue`, `p`, `topSignals`; level `Critical/High/Watch/Safe` = Kritis/Tinggi/Waspada/Aman, warna dashboard `Green/Yellow/Red` = Hijau/Kuning/Merah).
+- ✅ KEPUTUSAN (2026-10-09, Adrian): tugas milik Dio untuk F-05 s.d. F-11 dikerjakan Adrian; pembagian penanggung jawab di header diabaikan sementara.
+- ✅ HASIL: `src/lib/source-comparison.ts` (`compareSources`, fungsi murni), `src/components/evidence/source-comparison-card.tsx` (dua kolom Source A / Source B: berkas, ID, tanggal), dipasang di `src/components/evidence/evidence-explorer.tsx` pada `/akun/[id]`. Tes: `tests/lib/source-comparison.test.ts` (node champion K017 → Source A = `crm_accounts.csv` (CHAMPION_DARI), Source B = `contact_employment_history.csv`; relasi turunan tidak dihitung; satu sumber → `null`).
+- ⚠️ ASUMSI: penampil graph interaktif (F-12) tidak termasuk cakupan pekerjaan ini; slot panel samping diisi daftar node berkelompok per label + panel detail. Urutan Source A/B memakai daftar prioritas berkas (klaim CRM lebih dulu), bukan penilaian semantik "bertentangan". Catatan milik node itu sendiri tidak dihitung sebagai record; yang dibandingkan adalah relasi yang menyentuhnya.
 
 ## 10. Definition of Done
 - [ ] Semua acceptance criteria di section 3 lolos uji di section 8
