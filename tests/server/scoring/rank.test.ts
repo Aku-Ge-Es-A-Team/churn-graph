@@ -1,127 +1,71 @@
 import { describe, expect, test } from "bun:test";
-import { DASHBOARD_WARNA, P_LEVEL, RiskRowSchema, type Sinyal } from "../../../src/types/graph";
-import { sinyalDiabaikan, susunRiskRows, type AkunInfo } from "../../../src/server/scoring/rank";
-import { ASOF, CFG_UJI, akun, sinyal, tanggal } from "../../fixtures/scoring/fixture";
+import { buildRiskRows, ignoredSignals } from "../../../src/server/scoring/rank";
+import { AS_OF, account, signal } from "../../helpers/signals";
 
-const urutan = (akunList: AkunInfo[], s: Sinyal[], cfg = CFG_UJI) =>
-  susunRiskRows(akunList, s, ASOF, cfg).map((r) => r.akun);
+describe("buildRiskRows", () => {
+  const accounts = [
+    account({ account: "C01", dashboard: "Green", annualValue: 149_940_000, renewalDate: "2026-12-15" }),
+    account({ account: "C02", dashboard: "Yellow", annualValue: 99_750_000, renewalDate: "2027-03-01" }),
+    account({ account: "C04", dashboard: "Green", annualValue: 33_600_000, renewalDate: "2026-11-05" }),
+  ];
+  const signals = [
+    signal({ account: "C01", code: "A", weight: 3 }),
+    signal({ account: "C01", code: "B", weight: 3 }),
+    signal({ account: "C01", code: "C", weight: 2 }),
+    signal({ account: "C04", code: "D", weight: 2 }),
+    signal({ account: "C04", code: "E", weight: 2 }),
+  ];
 
-describe("susunRiskRows — urutan", () => {
-  test("skor menurun", () => {
-    const list = [akun("ACC-C"), akun("ACC-A"), akun("ACC-B")];
-    const s = [sinyal("ACC-A", "X", 5), sinyal("ACC-B", "X", 3), sinyal("ACC-C", "X", 1)];
-    expect(urutan(list, s)).toEqual(["ACC-A", "ACC-B", "ACC-C"]);
+  test("ranks by score and builds every field of the row", () => {
+    const rows = buildRiskRows(accounts, signals, AS_OF);
+    expect(rows.map((r) => r.account)).toEqual(["C01", "C04", "C02"]);
+    const c01 = rows[0];
+    expect(c01).toMatchObject({ level: "Critical", score: 10, diverges: true, renewalDays: 75, p: 0.6, atRiskValue: 89_964_000, annualValue: 149_940_000 });
+    expect(c01.topSignals.map((s) => s.code)).toEqual(["A", "B", "C"]);
+    expect(rows[1]).toMatchObject({ account: "C04", level: "High", score: 6, diverges: true, renewalDays: 35 });
   });
 
-  test("skor seri → renewal lebih dekat dulu", () => {
-    const list = [akun("ACC-A", { tanggalRenewal: tanggal(20) }), akun("ACC-B", { tanggalRenewal: tanggal(10) })];
-    const s = [sinyal("ACC-A", "X", 2), sinyal("ACC-B", "X", 2)];
-    expect(urutan(list, s)).toEqual(["ACC-B", "ACC-A"]);
+  test("an account without signals is Safe with score 0, never NaN", () => {
+    const c02 = buildRiskRows(accounts, signals, AS_OF).find((r) => r.account === "C02")!;
+    expect(c02).toMatchObject({ level: "Safe", score: 0, diverges: false, topSignals: [] });
+    expect(Number.isNaN(c02.atRiskValue)).toBe(false);
   });
 
-  test("skor seri → renewal null paling akhir", () => {
-    const cfg = { ...CFG_UJI, faktorRenewal: { ...CFG_UJI.faktorRenewal, tanpaTanggal: 1 } };
-    const list = [akun("ACC-A", { tanggalRenewal: null }), akun("ACC-B")];
-    const s = [sinyal("ACC-A", "X", 2), sinyal("ACC-B", "X", 2)];
-    expect(urutan(list, s, cfg)).toEqual(["ACC-B", "ACC-A"]);
+  test("a missing renewal date does not break the ranking", () => {
+    const rows = buildRiskRows([account({ account: "X1", renewalDate: null })], [signal({ account: "X1", code: "A", weight: 5 })], AS_OF);
+    expect(rows[0]).toMatchObject({ renewalDays: null, score: 5, level: "High" });
   });
 
-  test("skor & renewal seri → nilai tahunan lebih besar dulu", () => {
-    const list = [akun("ACC-A", { nilaiTahunan: 50_000_000 }), akun("ACC-B", { nilaiTahunan: 90_000_000 })];
-    expect(urutan(list, [])).toEqual(["ACC-B", "ACC-A"]);
+  test("tie-break: nearest renewal first, then larger annual value, then account id", () => {
+    const tied = [
+      account({ account: "B", annualValue: 100, renewalDate: "2027-05-01" }),
+      account({ account: "A", annualValue: 100, renewalDate: "2027-05-01" }),
+      account({ account: "C", annualValue: 900, renewalDate: "2027-05-01" }),
+      account({ account: "D", annualValue: 100, renewalDate: "2027-04-01" }),
+    ];
+    const all = tied.map((a) => signal({ account: a.account, code: "X", weight: 3 }));
+    expect(buildRiskRows(tied, all, AS_OF).map((r) => r.account)).toEqual(["D", "C", "A", "B"]);
   });
 
-  test("semua seri → ID akun alfabet", () => {
-    expect(urutan([akun("ACC-B"), akun("ACC-A")], [])).toEqual(["ACC-A", "ACC-B"]);
-  });
-});
-
-describe("susunRiskRows — kasus tepi", () => {
-  test("akun tanpa sinyal tetap muncul sebagai Aman skor 0", () => {
-    const [row] = susunRiskRows([akun("ACC-A", { nilaiTahunan: 123_456_789 })], [], ASOF, CFG_UJI);
-    expect(row).toMatchObject({ akun: "ACC-A", level: "Aman", skor: 0, p: 0.05, rupiahBerisiko: Math.round(123_456_789 * 0.05), sinyalTeratas: [] });
-  });
-
-  test("sinyal akun tak dikenal diabaikan tanpa error dan dilaporkan", () => {
-    const list = [akun("ACC-A")];
-    const s = [sinyal("ACC-A", "X", 1), sinyal("ACC-ZZ", "X", 9)];
-    const rows = susunRiskRows(list, s, ASOF, CFG_UJI);
-    expect(rows.map((r) => r.akun)).toEqual(["ACC-A"]);
-    expect(rows[0].skor).toBe(1);
-    expect(sinyalDiabaikan(list, s).akunTakDikenal.map((x) => x.akun)).toEqual(["ACC-ZZ"]);
-  });
-
-  test("bobot NaN/Infinity diabaikan, tidak merusak skor, dan dilaporkan", () => {
-    const list = [akun("ACC-A")];
-    const s = [sinyal("ACC-A", "X", 4), sinyal("ACC-A", "N", NaN), sinyal("ACC-A", "I", Infinity)];
-    const [row] = susunRiskRows(list, s, ASOF, CFG_UJI);
-    expect(row.skor).toBe(4);
-    expect(row.sinyalTeratas.map((x) => x.kode)).toEqual(["X"]);
-    expect(sinyalDiabaikan(list, s).bobotTidakValid.map((x) => x.kode)).toEqual(["N", "I"]);
-  });
-
-  test("divergen = Hijau dan level >= Tinggi", () => {
-    const list = [akun("ACC-A"), akun("ACC-B", { dashboard: "Kuning" })];
-    const s = [sinyal("ACC-A", "X", 6), sinyal("ACC-B", "X", 6)];
-    const rows = susunRiskRows(list, s, ASOF, CFG_UJI);
-    expect(rows.map((r) => [r.akun, r.level, r.divergen])).toEqual([
-      ["ACC-A", "Tinggi", true],
-      ["ACC-B", "Tinggi", false],
-    ]);
+  test("does not mutate its input", () => {
+    const accountsCopy = structuredClone(accounts);
+    const signalsCopy = structuredClone(signals);
+    buildRiskRows(accounts, signals, AS_OF);
+    expect(accounts).toEqual(accountsCopy);
+    expect(signals).toEqual(signalsCopy);
   });
 });
 
-describe("susunRiskRows — kemurnian & determinisme", () => {
-  const list = [akun("ACC-B"), akun("ACC-A", { tanggalRenewal: tanggal(5) }), akun("ACC-C", { tanggalRenewal: null })];
-  const s = [sinyal("ACC-A", "X", 3), sinyal("ACC-B", "Y", 2), sinyal("ACC-A", "N", NaN), sinyal("ACC-Q", "Z", 1)];
-
-  test("tidak mengubah array masukan", () => {
-    const [l0, s0] = [structuredClone(list), structuredClone(s)];
-    susunRiskRows(list, s, ASOF, CFG_UJI);
-    expect(list).toEqual(l0);
-    expect(s).toEqual(s0);
-  });
-
-  test("dua panggilan dan urutan masukan berbeda → hasil identik", () => {
-    const a = susunRiskRows(list, s, ASOF, CFG_UJI);
-    expect(susunRiskRows(list, s, ASOF, CFG_UJI)).toEqual(a);
-    expect(susunRiskRows([...list].reverse(), [...s].reverse(), ASOF, CFG_UJI)).toEqual(a);
-  });
-});
-
-describe("susunRiskRows — properti (acak, seed tetap)", () => {
-  // LCG sederhana agar deterministik.
-  let seed = 42;
-  const acak = () => ((seed = (seed * 1_664_525 + 1_013_904_223) % 2 ** 32) / 2 ** 32);
-  const int = (min: number, max: number) => min + Math.floor(acak() * (max - min + 1));
-
-  const list: AkunInfo[] = [];
-  const s: Sinyal[] = [];
-  for (let i = 0; i < 300; i++) {
-    const id = `ACC-${String(i).padStart(3, "0")}`;
-    list.push(
-      akun(id, {
-        dashboard: DASHBOARD_WARNA[int(0, 2)],
-        nilaiTahunan: int(0, 1_000_000_000),
-        tanggalRenewal: acak() < 0.1 ? null : tanggal(int(-60, 400)),
-      }),
-    );
-    for (let j = int(0, 6); j > 0; j--) s.push(sinyal(id, `K${j}`, int(1, 5), tanggal(-int(0, 300))));
-  }
-  const rows = susunRiskRows(list, s, ASOF, CFG_UJI);
-
-  test("tiap baris konsisten dengan P_LEVEL dan kontrak RiskRow", () => {
-    expect(rows).toHaveLength(300);
-    for (const r of rows) {
-      expect(r.p).toBe(P_LEVEL[r.level]);
-      expect(r.rupiahBerisiko).toBe(Math.round(r.nilaiTahunan * r.p));
-      expect(r.sinyalTeratas.length).toBeLessThanOrEqual(3);
-      expect(r.divergen).toBe(r.dashboard === "Hijau" && (r.level === "Kritis" || r.level === "Tinggi"));
-      expect(RiskRowSchema.safeParse(r).success).toBe(true);
-    }
-  });
-
-  test("skor tidak pernah naik sepanjang urutan", () => {
-    for (let i = 1; i < rows.length; i++) expect(rows[i].skor).toBeLessThanOrEqual(rows[i - 1].skor);
+describe("ignoredSignals", () => {
+  test("reports signals of unknown accounts and signals with an invalid weight", () => {
+    const accounts = [account({ account: "C01" })];
+    const all = [
+      signal({ account: "C01", code: "A", weight: 3 }),
+      signal({ account: "C01", code: "B", weight: Number.NaN }),
+      signal({ account: "P01", code: "A", weight: 3 }),
+    ];
+    const ignored = ignoredSignals(accounts, all);
+    expect(ignored.unknownAccount.map((s) => s.account)).toEqual(["P01"]);
+    expect(ignored.invalidWeight.map((s) => s.code)).toEqual(["B"]);
   });
 });

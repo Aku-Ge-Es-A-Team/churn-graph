@@ -1,47 +1,34 @@
 import { describe, expect, test } from "bun:test";
-import {
-  EvidenceRegistry,
-  collectEvidence,
-  evidenceFromGraphPayload,
-} from "../../../src/server/ask/evidence";
+import { EvidenceRegistry, collectEvidence, evidenceFromGraphPayload } from "../../../src/server/ask/evidence";
 import type { GraphPayload } from "../../../src/types/graph";
 
 const base = { source_file: "emails.csv", source_id: "E-001" };
 
 describe("EvidenceRegistry", () => {
-  test("ID sama digabung tanpa menghapus teks", () => {
+  test("items with the same ID are merged without losing text", () => {
     const r = new EvidenceRegistry();
-    r.add({ id: "a", ...base, teks: "isi asli" });
-    r.add({ id: "a", ...base, teks: "" });
+    r.add({ id: "a", ...base, text: "original body" });
+    r.add({ id: "a", ...base, text: "" });
     r.add({ id: "a", ...base });
     expect(r.size).toBe(1);
-    expect(r.get("a")?.teks).toBe("isi asli");
+    expect(r.get("a")?.text).toBe("original body");
   });
 
-  test("teks kosong terisi oleh item berikutnya dengan ID sama", () => {
+  test("empty text is filled by a later item with the same ID", () => {
     const r = new EvidenceRegistry();
     r.add({ id: "a", ...base });
-    r.add([{ id: "a", ...base, teks: "isi baru" }]);
-    expect(r.get("a")?.teks).toBe("isi baru");
+    r.add([{ id: "a", ...base, text: "new body" }]);
+    expect(r.get("a")?.text).toBe("new body");
     expect(r.has("a")).toBe(true);
     expect(r.ids()).toEqual(["a"]);
   });
 });
 
 describe("collectEvidence", () => {
-  test("tidak melempar error untuk hasil tool berbentuk aneh", () => {
+  test("does not throw on oddly shaped tool results", () => {
     const r = new EvidenceRegistry();
     const accepted = collectEvidence(
-      [
-        null,
-        undefined,
-        1,
-        "x",
-        {},
-        { data: [] },
-        { evidence: "bukan array" },
-        { evidence: [null, 5, { id: "tanpa-sumber" }, { id: "", ...base }, { id: "ok", ...base, teks: "t" }] },
-      ],
+      [null, undefined, 1, "x", {}, { data: [] }, { evidence: "not an array" }, { evidence: [null, 5, { id: "no-source" }, { id: "", ...base }, { id: "ok", ...base, text: "t" }] }],
       r,
     );
     expect(accepted).toBe(1);
@@ -52,16 +39,15 @@ describe("collectEvidence", () => {
 });
 
 describe("evidenceFromGraphPayload", () => {
-  test("menghasilkan item dengan source_file dan source_id terisi", () => {
+  test("produces items with source_file and source_id filled in", () => {
     const payload: GraphPayload = {
       nodes: [
-        { id: "n1", label: "Tiket", props: { judul: "Printer macet", deskripsi: "Sejak update", jumlah: 3 }, source_file: "tickets.csv", source_id: "T-1" },
-        { id: "n2", label: "UsageBulan", props: { transaksi: 1200 }, source_file: "usage.csv", source_id: "U-1" },
+        { id: "n1", label: "Tiket", props: { judul: "Printer jams", deskripsi: "Since the update", count: 3 }, source_file: "tickets.csv", source_id: "T-1" },
+        { id: "n2", label: "UsageBulan", props: { transactions: 1200 }, source_file: "usage.csv", source_id: "U-1" },
       ],
-      edges: [
-        { id: "e1", source: "n1", target: "n2", type: "MENYEBUT", props: {}, source_file: "tickets.csv", source_id: "T-1", derived: false },
-      ],
-      meta: { akun: "C01", jumlahNode: 2, jumlahRelasi: 1 },
+      edges: [{ id: "e1", source: "n1", target: "n2", type: "MENYEBUT", props: {}, source_file: "tickets.csv", source_id: "T-1", derived: false }],
+      highlight: ["n1"],
+      meta: { account: "C01", nodeCount: 2, edgeCount: 1 },
     };
     const items = evidenceFromGraphPayload(payload);
     expect(items.map((i) => i.id)).toEqual(["n1", "n2", "e1"]);
@@ -69,8 +55,8 @@ describe("evidenceFromGraphPayload", () => {
       expect(i.source_file).not.toBe("");
       expect(i.source_id).not.toBe("");
     }
-    expect(items[0].teks).toBe("Printer macet\nSejak update");
-    expect(items[1].teks).toBeUndefined();
-    expect(items[1].props).toEqual({ transaksi: 1200 });
+    expect(items[0].text).toBe("Printer jams\nSince the update");
+    expect(items[1].text).toBeUndefined();
+    expect(items[1].props).toEqual({ transactions: 1200 });
   });
 });

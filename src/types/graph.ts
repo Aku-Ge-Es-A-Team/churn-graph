@@ -1,71 +1,46 @@
 import { z } from "zod";
 
-// DRAF — dikirim ke Adrian (ETL & skema graph) untuk dikoreksi. Jangan dianggap final.
-//
-// KEPUTUSAN TERBUKA UNTUK ADRIAN:
-// 1. Nama label node final (saat ini hanya `UsageBulan`, `Klaim` disebut spek, sisanya bebas).
-// 2. Nama tipe relasi final (daftar di bawah baru yang disebut spek, belum lengkap).
-// 3. Format `source_id` per sumber (apakah row index, primary key asli, atau gabungan?).
-// 4. Format `id` node (UUID baru, atau turunan dari source_id + label?).
-// 5. Apakah `sejak` pada Sinyal selalu tersedia untuk semua kode sinyal, atau ada yang tanpa tanggal?
-// 6. Format kode sinyal (slug bebas? daftar tertutup? prefix per kategori?).
+// Shared data contract between the server (graph queries, scoring) and the UI.
+// Naming convention: identifiers and UI content are English. The graph vocabulary stored in Neo4j
+// (labels such as `Akun`, relationship types such as `BEKERJA_DI`, signal codes such as `CHAMPION_KELUAR`)
+// and the dataset column names follow the product documents and are intentionally NOT translated; the
+// server queries translate them at the boundary (see docs/glossary.md).
 
-// --- Sumber data ---
-
-export const SUMBER_DATA = ["crm", "interaksi", "usage", "tiket", "kontrak", "decision_log"] as const;
-export type SumberData = (typeof SUMBER_DATA)[number];
-
-// --- Node & Edge ---
-
-// Label yang SUDAH disebut spesifikasi — belum final, skema milik Adrian.
-export const LABEL_DIKENAL = ["UsageBulan", "Klaim"] as const;
+// --- Graph payload (evidence subgraph) ---
 
 export const GraphNodeSchema = z.object({
   id: z.string(),
-  label: z.string(), // sengaja bukan enum tertutup, lihat LABEL_DIKENAL
+  label: z.string(), // intentionally not a closed enum; the graph schema is owned by the data pipeline
   props: z.record(z.string(), z.unknown()),
   source_file: z.string().min(1),
   source_id: z.string().min(1),
 });
 export type GraphNode = z.infer<typeof GraphNodeSchema>;
 
-// Tipe relasi yang SUDAH disebut spesifikasi — belum final, skema milik Adrian.
-export const TIPE_RELASI_DIKENAL = [
-  "MENJALANKAN_VERSI",
-  "Anomali",
-  "MEMBALAS",
-  "MENYEBUT",
-  "KANDIDAT_DISEBABKAN_OLEH",
-  "ALAMAT_EMAIL_DARI",
-  "MENYETUJUI",
-  "SALING_KENAL",
-] as const;
-
 export const GraphEdgeSchema = z.object({
   id: z.string(),
   source: z.string(),
   target: z.string(),
-  type: z.string(), // sengaja bukan enum tertutup, lihat TIPE_RELASI_DIKENAL
+  type: z.string(),
   props: z.record(z.string(), z.unknown()),
   source_file: z.string().min(1),
   source_id: z.string().min(1),
   derived: z.boolean(),
   rule: z.string().optional(),
   confidence: z.number().min(0).max(1).optional(),
-  tanggal: z.iso.date().optional(),
 });
 export type GraphEdge = z.infer<typeof GraphEdgeSchema>;
-
-// --- Payload graph ---
 
 export const GraphPayloadSchema = z.object({
   nodes: z.array(GraphNodeSchema),
   edges: z.array(GraphEdgeSchema),
+  /** IDs of the nodes that belong to the selected evidence (highlighted in the UI). */
+  highlight: z.array(z.string()),
   meta: z.object({
-    akun: z.string(),
-    sinyal: z.string().optional(),
-    jumlahNode: z.number(),
-    jumlahRelasi: z.number(),
+    account: z.string(),
+    signal: z.string().optional(),
+    nodeCount: z.number(),
+    edgeCount: z.number(),
   }),
 });
 export type GraphPayload = z.infer<typeof GraphPayloadSchema>;
@@ -73,80 +48,165 @@ export type GraphPayload = z.infer<typeof GraphPayloadSchema>;
 export function validateGraphPayload(payload: GraphPayload): { ok: boolean; errors: string[] } {
   const errors: string[] = [];
   const nodeIds = new Set<string>();
-
   for (const node of payload.nodes) {
-    if (nodeIds.has(node.id)) errors.push(`node duplikat: ${node.id}`);
+    if (nodeIds.has(node.id)) errors.push(`duplicate node: ${node.id}`);
     nodeIds.add(node.id);
-    if (!node.source_file) errors.push(`node ${node.id} tanpa source_file`);
-    if (!node.source_id) errors.push(`node ${node.id} tanpa source_id`);
   }
-
   for (const edge of payload.edges) {
-    if (!nodeIds.has(edge.source)) errors.push(`edge ${edge.id} menunjuk source yang tidak ada: ${edge.source}`);
-    if (!nodeIds.has(edge.target)) errors.push(`edge ${edge.id} menunjuk target yang tidak ada: ${edge.target}`);
-    if (!edge.source_file) errors.push(`edge ${edge.id} tanpa source_file`);
-    if (!edge.source_id) errors.push(`edge ${edge.id} tanpa source_id`);
+    if (!nodeIds.has(edge.source)) errors.push(`edge ${edge.id} points to a missing source: ${edge.source}`);
+    if (!nodeIds.has(edge.target)) errors.push(`edge ${edge.id} points to a missing target: ${edge.target}`);
+    if (!edge.source_file) errors.push(`edge ${edge.id} has no source_file`);
   }
-
   return { ok: errors.length === 0, errors };
 }
 
-// --- Sinyal ---
+// --- Signals (output of the rule engine, graph nodes `:Sinyal`) ---
 
-export const SinyalSchema = z.object({
-  akun: z.string(),
-  kode: z.string(),
-  bobot: z.number(),
-  bukti_ids: z.array(z.string()).min(1),
-  fakta: z.string(),
-  sejak: z.iso.date(),
+/** Signal codes written by the rule engine (cypher/signals). Persisted values; see docs/glossary.md. */
+export const SIGNAL_CODES = [
+  "CHAMPION_KELUAR",
+  "JANJI_DILANGGAR",
+  "KOMPETITOR_DISEBUT",
+  "OUTREACH_TAK_BERBALAS",
+  "RISIKO_PEMBAYARAN",
+  "TIKET_BUG_TAK_TERTAUT",
+  "ANOMALI_USAGE_RILIS_BUG",
+  "TIKET_TAK_DIREPRODUKSI",
+] as const;
+export type SignalCode = (typeof SIGNAL_CODES)[number];
+
+export const SignalSchema = z.object({
+  account: z.string(),
+  code: z.string(),
+  weight: z.number(),
+  evidenceIds: z.array(z.string()).min(1),
+  facts: z.record(z.string(), z.unknown()),
+  since: z.iso.date(),
 });
-export type Sinyal = z.infer<typeof SinyalSchema>;
+export type Signal = z.infer<typeof SignalSchema>;
 
-// --- Level & dashboard ---
+/** Accounts of the "focus" filter (PRD: C01–C06). */
+export const FOCUS_ACCOUNT_IDS = ["C01", "C02", "C03", "C04", "C05", "C06"] as const;
 
-export const LEVEL = ["Kritis", "Tinggi", "Waspada", "Aman"] as const;
-export type Level = (typeof LEVEL)[number];
+// --- Level and dashboard colour ---
 
-// ASUMSI A15: estimasi probabilitas churn per level, bukan hasil model.
-export const P_LEVEL: Record<Level, number> = {
-  Kritis: 0.6,
-  Tinggi: 0.4,
-  Waspada: 0.2,
-  Aman: 0.05,
+export const LEVELS = ["Critical", "High", "Watch", "Safe"] as const;
+export type Level = (typeof LEVELS)[number];
+
+/** ASSUMPTION A15: churn probability per level used for the at-risk estimate. Not a model output. */
+export const P_BY_LEVEL: Record<Level, number> = {
+  Critical: 0.6,
+  High: 0.4,
+  Watch: 0.2,
+  Safe: 0.05,
 };
 
-export const DASHBOARD_WARNA = ["Hijau", "Kuning", "Merah"] as const;
-export type DashboardWarna = (typeof DASHBOARD_WARNA)[number];
+export const DASHBOARD_COLORS = ["Green", "Yellow", "Red"] as const;
+export type DashboardColor = (typeof DASHBOARD_COLORS)[number];
 
-// --- RiskRow ---
+// --- RiskRow (one row of the ranking board) ---
 
 export const RiskRowSchema = z.object({
-  akun: z.string(),
-  nama: z.string(),
-  dashboard: z.enum(DASHBOARD_WARNA),
-  level: z.enum(LEVEL),
-  skor: z.number(),
-  divergen: z.boolean(),
-  renewalHari: z.number().nullable(),
-  nilaiTahunan: z.number(),
-  rupiahBerisiko: z.number(),
+  account: z.string(),
+  name: z.string(),
+  dashboard: z.enum(DASHBOARD_COLORS),
+  level: z.enum(LEVELS),
+  score: z.number(),
+  /** Dashboard says Green while the findings say High or Critical. */
+  diverges: z.boolean(),
+  renewalDays: z.number().nullable(),
+  annualValue: z.number(),
+  /** annualValue × p(level), in IDR. Always an ESTIMATE. */
+  atRiskValue: z.number(),
   p: z.number(),
-  sinyalTeratas: z.array(SinyalSchema).max(3),
+  topSignals: z.array(SignalSchema).max(3),
 });
 export type RiskRow = z.infer<typeof RiskRowSchema>;
 
-// --- Klaim & jawaban Tanya Graph (dasar validator sitasi, bukan dikerjakan sekarang) ---
+// --- Account explanation (F-07) ---
 
-export const KlaimSchema = z.object({
-  teks: z.string(),
-  bukti_ids: z.array(z.string()),
-  kutipan: z.string().optional(),
+export type RuleStatus = "triggered" | "clear";
+export type AccountExplanation = {
+  account: string;
+  name: string;
+  level: Level;
+  /** "consistent" = level Safe (no material finding); otherwise "at_risk". */
+  status: "consistent" | "at_risk";
+  rules: { code: string; status: RuleStatus; weight: number | null }[];
+  /** Z1: tickets of category "feature request" are never counted as negative signals. */
+  featureRequestTickets: { count: number; ticketIds: string[]; titles: { id: string; title: string }[] };
+};
+
+// --- Retention action card (F-09). Promoted from the module-local type (proposal T08-06). ---
+
+export type DecisionPrecedent = {
+  decisionId: string;
+  type: string;
+  date: string;
+  outcome: string;
+  value: string | null;
+  accountId: string | null;
+  approver: { id: string; name: string; title: string } | null;
+  evidenceInteractionId: string | null;
+  reason: string | null;
+};
+
+export type DiscountPolicy = {
+  /** Highest discount percentage ever approved or stated as the limit in the decision log. */
+  limitPct: number;
+  /** The decision that states the limit (e.g. a rejected request "above the 15% limit"). */
+  precedentId: string | null;
+  currentPct: number | null;
+  headroomPct: number | null;
+};
+
+export type ActionType =
+  | "BUG_ESCALATION_AND_COMPENSATION"
+  | "RECOVER_FEATURE_PROMISE"
+  | "COMPETITIVE_RETENTION_REVIEW"
+  | "PAYMENT_TERMS_REVIEW"
+  | "EXECUTIVE_OUTREACH";
+
+export type RetentionAction = {
+  type: ActionType;
+  title: string;
+  rationale: string;
+  signalCodes: string[];
+  weight: number;
+  precedents: DecisionPrecedent[];
+  /** Estimated cost in IDR (null when the action has no monetary cost). */
+  cost: { amount: number; basis: string } | null;
+  discount?: DiscountPolicy;
+};
+
+export type RetentionCard = {
+  account: string;
+  level: Level;
+  atRiskValue: number;
+  p: number;
+  annualValue: number;
+  /** Empty when there is nothing to recommend (e.g. level Safe). */
+  actions: RetentionAction[];
+};
+
+export type DeviationCheck = {
+  deviates: boolean;
+  requiresReason: boolean;
+  message: string;
+  precedentId: string | null;
+};
+
+// --- Claims and answers of the Q&A feature (basis of the citation validator) ---
+
+export const ClaimSchema = z.object({
+  text: z.string(),
+  evidenceIds: z.array(z.string()),
+  quote: z.string().optional(),
 });
-export type Klaim = z.infer<typeof KlaimSchema>;
+export type Claim = z.infer<typeof ClaimSchema>;
 
 export const AskResponseSchema = z.object({
-  jawaban: z.string(),
-  klaim: z.array(KlaimSchema),
+  answer: z.string(),
+  claims: z.array(ClaimSchema),
 });
 export type AskResponse = z.infer<typeof AskResponseSchema>;

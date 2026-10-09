@@ -1,26 +1,26 @@
-import { KlaimSchema, type Klaim } from "../../types/graph";
+import { ClaimSchema, type Claim } from "../../types/graph";
 import type { EvidenceItem, EvidenceRegistry } from "./evidence";
 
-export type AlasanDibuang =
-  | "format_tidak_valid"
-  | "tanpa_bukti"
-  | "bukti_tidak_dikenal"
-  | "kutipan_tanpa_teks_sumber"
-  | "kutipan_tidak_cocok";
-export type AlasanDitandai = "kutipan_terlalu_pendek" | "angka_tidak_ditemukan";
+export type DiscardReason =
+  | "invalid_format"
+  | "no_evidence"
+  | "unknown_evidence"
+  | "quote_without_source_text"
+  | "quote_mismatch";
+export type FlagReason = "quote_too_short" | "number_not_found";
 
-export type KlaimDitandai = { klaim: Klaim; alasan: AlasanDitandai[] };
-// `klaim` null bila elemen dari LLM bahkan tidak berbentuk Klaim.
-export type KlaimDibuang = { klaim: Klaim | null; alasan: AlasanDibuang[]; idBermasalah?: string[] };
+export type FlaggedClaim = { claim: Claim; reasons: FlagReason[] };
+// `claim` is null when the LLM element was not even shaped like a Claim.
+export type DiscardedClaim = { claim: Claim | null; reasons: DiscardReason[]; offendingIds?: string[] };
 
 export type ValidationResult = {
-  klaimLolos: Klaim[];
-  klaimDitandai: KlaimDitandai[];
-  klaimDibuang: KlaimDibuang[];
+  passed: Claim[];
+  flagged: FlaggedClaim[];
+  discarded: DiscardedClaim[];
   valid: boolean;
 };
 
-const MIN_PANJANG_KUTIPAN = 8;
+const MIN_QUOTE_LENGTH = 8;
 const NUMBER_TOKEN = /\d+(?:[.,]\d+)*/g;
 
 export function normalizeText(s: string): string {
@@ -31,91 +31,85 @@ export function normalizeText(s: string): string {
     .trim();
 }
 
-// HEURISTIK, bisa false positive/negative. Tiap token angka dibaca dua cara
-// (Indonesia "1.500.000,5" dan internasional "1,500,000.5") lalu dibandingkan sebagai nilai,
-// jadi "15%" = "15 %" dan "Rp 252 jt" = "252". Tidak paham satuan: "252 jt" ≠ "252.000.000".
+// HEURISTIC, may give false positives/negatives. Each number token is read both ways
+// (Indonesian "1.500.000,5" and international "1,500,000.5") and compared by value, so "15%" equals "15 %".
+// Units are not understood: "252 jt" is not "252.000.000".
 function numberValues(text: string): Set<number> {
   const out = new Set<number>();
-  for (const [tok] of text.matchAll(NUMBER_TOKEN)) {
-    const id = Number(tok.replace(/\./g, "").replace(",", "."));
-    const intl = Number(tok.replace(/,/g, ""));
-    if (!Number.isNaN(id)) out.add(id);
-    if (!Number.isNaN(intl)) out.add(intl);
+  for (const [token] of text.matchAll(NUMBER_TOKEN)) {
+    const asIndonesian = Number(token.replace(/\./g, "").replace(",", "."));
+    const asInternational = Number(token.replace(/,/g, ""));
+    if (!Number.isNaN(asIndonesian)) out.add(asIndonesian);
+    if (!Number.isNaN(asInternational)) out.add(asInternational);
   }
   return out;
 }
 
-// Konservatif: SETIAP angka di klaim harus ditemukan di bukti yang dirujuk.
-function numbersMissing(klaimTeks: string, sources: EvidenceItem[]): boolean {
-  const haystack = sources.map((s) => `${s.teks ?? ""} ${JSON.stringify(s.props ?? {})}`).join(" ");
+// Conservative: EVERY number in the claim must be found in the evidence it cites.
+function numbersMissing(claimText: string, sources: EvidenceItem[]): boolean {
+  const haystack = sources.map((s) => `${s.text ?? ""} ${JSON.stringify(s.props ?? {})}`).join(" ");
   const available = numberValues(haystack);
-  for (const [tok] of klaimTeks.matchAll(NUMBER_TOKEN)) {
-    if (![...numberValues(tok)].some((v) => available.has(v))) return true;
+  for (const [token] of claimText.matchAll(NUMBER_TOKEN)) {
+    if (![...numberValues(token)].some((v) => available.has(v))) return true;
   }
   return false;
 }
 
-function checkKlaim(
-  klaim: Klaim,
+function checkClaim(
+  claim: Claim,
   registry: EvidenceRegistry,
-  minKutipan: number,
-): { dibuang: KlaimDibuang } | { ditandai: AlasanDitandai[] } {
-  if (klaim.teks.trim() === "") return { dibuang: { klaim, alasan: ["format_tidak_valid"] } };
+  minQuoteLength: number,
+): { discarded: DiscardedClaim } | { flagged: FlagReason[] } {
+  if (claim.text.trim() === "") return { discarded: { claim, reasons: ["invalid_format"] } };
 
-  // 1. Tanpa bukti.
-  if (klaim.bukti_ids.length === 0) return { dibuang: { klaim, alasan: ["tanpa_bukti"] } };
+  // 1. No evidence.
+  if (claim.evidenceIds.length === 0) return { discarded: { claim, reasons: ["no_evidence"] } };
 
-  // 2. Satu ID di luar registry cukup untuk membuang klaim.
-  const unknown = klaim.bukti_ids.filter((id) => !registry.has(id));
-  if (unknown.length) {
-    return { dibuang: { klaim, alasan: ["bukti_tidak_dikenal"], idBermasalah: unknown } };
-  }
-  const sources = klaim.bukti_ids.map((id) => registry.get(id)!);
+  // 2. A single ID outside the registry is enough to discard the claim.
+  const unknown = claim.evidenceIds.filter((id) => !registry.has(id));
+  if (unknown.length) return { discarded: { claim, reasons: ["unknown_evidence"], offendingIds: unknown } };
+  const sources = claim.evidenceIds.map((id) => registry.get(id)!);
 
-  const flags: AlasanDitandai[] = [];
+  const flags: FlagReason[] = [];
 
-  // 3. Kutipan harus substring teks dari bukti yang DIRUJUK klaim ini (peka huruf).
-  if (klaim.kutipan !== undefined) {
-    const withText = sources.filter((s) => s.teks && s.teks.trim() !== "");
-    if (withText.length === 0) return { dibuang: { klaim, alasan: ["kutipan_tanpa_teks_sumber"] } };
-    const kutipan = normalizeText(klaim.kutipan);
-    if (!withText.some((s) => normalizeText(s.teks!).includes(kutipan))) {
-      return { dibuang: { klaim, alasan: ["kutipan_tidak_cocok"] } };
+  // 3. The quote must be a substring of the text of the evidence THIS claim cites (case-sensitive).
+  if (claim.quote !== undefined) {
+    const withText = sources.filter((s) => s.text && s.text.trim() !== "");
+    if (withText.length === 0) return { discarded: { claim, reasons: ["quote_without_source_text"] } };
+    const quote = normalizeText(claim.quote);
+    if (!withText.some((s) => normalizeText(s.text!).includes(quote))) {
+      return { discarded: { claim, reasons: ["quote_mismatch"] } };
     }
-    if (kutipan.length < minKutipan) flags.push("kutipan_terlalu_pendek");
+    if (quote.length < minQuoteLength) flags.push("quote_too_short");
   }
 
-  // 4. Penanda saja.
-  if (numbersMissing(klaim.teks, sources)) flags.push("angka_tidak_ditemukan");
+  // 4. Flag only.
+  if (numbersMissing(claim.text, sources)) flags.push("number_not_found");
 
-  return { ditandai: flags };
+  return { flagged: flags };
 }
 
-// `input` adalah keluaran LLM: apa pun bentuknya, fungsi ini tidak melempar error.
-// Bila ragu, klaim dibuang; tidak ada jalur yang meloloskan klaim tanpa bukti di registry.
-export function validateAnswer(
-  input: unknown,
-  registry: EvidenceRegistry,
-  opts?: { minPanjangKutipan?: number },
-): ValidationResult {
-  const minKutipan = opts?.minPanjangKutipan ?? MIN_PANJANG_KUTIPAN;
-  const result: ValidationResult = { klaimLolos: [], klaimDitandai: [], klaimDibuang: [], valid: false };
+// `input` is LLM output: whatever its shape, this function never throws.
+// When in doubt the claim is discarded; no path lets a claim through without evidence in the registry.
+export function validateAnswer(input: unknown, registry: EvidenceRegistry, opts?: { minQuoteLength?: number }): ValidationResult {
+  const minQuoteLength = opts?.minQuoteLength ?? MIN_QUOTE_LENGTH;
+  const result: ValidationResult = { passed: [], flagged: [], discarded: [], valid: false };
 
-  const rawKlaim = (input as { klaim?: unknown } | null | undefined)?.klaim;
-  if (typeof input !== "object" || !Array.isArray(rawKlaim)) return result;
+  const rawClaims = (input as { claims?: unknown } | null | undefined)?.claims;
+  if (typeof input !== "object" || !Array.isArray(rawClaims)) return result;
 
-  for (const raw of rawKlaim) {
-    const parsed = KlaimSchema.safeParse(raw);
+  for (const raw of rawClaims) {
+    const parsed = ClaimSchema.safeParse(raw);
     if (!parsed.success) {
-      result.klaimDibuang.push({ klaim: null, alasan: ["format_tidak_valid"] });
+      result.discarded.push({ claim: null, reasons: ["invalid_format"] });
       continue;
     }
-    const outcome = checkKlaim(parsed.data, registry, minKutipan);
-    if ("dibuang" in outcome) result.klaimDibuang.push(outcome.dibuang);
-    else if (outcome.ditandai.length) result.klaimDitandai.push({ klaim: parsed.data, alasan: outcome.ditandai });
-    else result.klaimLolos.push(parsed.data);
+    const outcome = checkClaim(parsed.data, registry, minQuoteLength);
+    if ("discarded" in outcome) result.discarded.push(outcome.discarded);
+    else if (outcome.flagged.length) result.flagged.push({ claim: parsed.data, reasons: outcome.flagged });
+    else result.passed.push(parsed.data);
   }
 
-  result.valid = result.klaimLolos.length > 0;
+  result.valid = result.passed.length > 0;
   return result;
 }

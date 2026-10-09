@@ -1,73 +1,67 @@
-import type { DashboardWarna, RiskRow, Sinyal } from "../../types/graph";
-import { KONFIG_DEFAULT, type ScoringConfig } from "./config";
+import type { DashboardColor, RiskRow, Signal } from "../../types/graph";
+import { DEFAULT_CONFIG, type ScoringConfig } from "./config";
 import {
-  banding,
-  bobotValid,
-  hariKeRenewal,
-  hitungDivergen,
-  nilaiAman,
-  rupiahBerisiko,
-  sinyalTeratas,
-  skorAkun,
-  tentukanLevel,
+  accountScore,
+  atRiskValue,
+  compare,
+  daysToRenewal,
+  divergesFromDashboard,
+  isValidWeight,
+  levelFor,
+  safeAmount,
+  topSignals,
 } from "./score";
 
-export type AkunInfo = {
-  akun: string;
-  nama: string;
-  dashboard: DashboardWarna;
-  nilaiTahunan: number;
-  tanggalRenewal: string | null;
+export type AccountInfo = {
+  account: string;
+  name: string;
+  dashboard: DashboardColor;
+  annualValue: number;
+  renewalDate: string | null;
 };
 
-// null (tanpa tanggal renewal) ditaruh paling akhir.
-const bandingRenewal = (a: number | null, b: number | null) =>
-  a === b ? 0 : a === null ? 1 : b === null ? -1 : a - b;
+// null (no renewal date) goes last.
+const compareRenewal = (a: number | null, b: number | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a - b);
 
-// Skor menurun → renewal terdekat → nilai tahunan terbesar → ID akun alfabet.
-const bandingBaris = (a: RiskRow, b: RiskRow) =>
-  b.skor - a.skor ||
-  bandingRenewal(a.renewalHari, b.renewalHari) ||
-  nilaiAman(b.nilaiTahunan) - nilaiAman(a.nilaiTahunan) ||
-  banding(a.akun, b.akun);
+// Score descending → nearest renewal → largest annual value → account id.
+const compareRows = (a: RiskRow, b: RiskRow) =>
+  b.score - a.score ||
+  compareRenewal(a.renewalDays, b.renewalDays) ||
+  safeAmount(b.annualValue) - safeAmount(a.annualValue) ||
+  compare(a.account, b.account);
 
-// Murni: tidak mengubah masukan. Sinyal untuk akun yang tidak ada di akunList diabaikan (lihat sinyalDiabaikan).
-export function susunRiskRows(
-  akunList: AkunInfo[],
-  sinyalSemua: Sinyal[],
-  asOf: Date,
-  cfg: ScoringConfig = KONFIG_DEFAULT,
-): RiskRow[] {
-  const perAkun = Map.groupBy(sinyalSemua, (s) => s.akun);
-  return akunList
+/** Pure: does not mutate its input. Signals of accounts that are not in `accounts` are ignored (see ignoredSignals). */
+export function buildRiskRows(accounts: AccountInfo[], allSignals: Signal[], asOf: Date, cfg: ScoringConfig = DEFAULT_CONFIG): RiskRow[] {
+  const byAccount = Map.groupBy(allSignals, (s) => s.account);
+  return accounts
     .map((a): RiskRow => {
-      const sinyal = perAkun.get(a.akun) ?? [];
-      const renewalHari = hariKeRenewal(a.tanggalRenewal, asOf);
-      const skor = skorAkun(sinyal, renewalHari, cfg);
-      const level = tentukanLevel(skor, cfg);
-      const { p, rupiah } = rupiahBerisiko(a.nilaiTahunan, level);
+      const signals = byAccount.get(a.account) ?? [];
+      const renewalDays = daysToRenewal(a.renewalDate, asOf);
+      const score = accountScore(signals, renewalDays, cfg);
+      const level = levelFor(score, cfg);
+      const { p, amount } = atRiskValue(a.annualValue, level);
       return {
-        akun: a.akun,
-        nama: a.nama,
+        account: a.account,
+        name: a.name,
         dashboard: a.dashboard,
         level,
-        skor,
-        divergen: hitungDivergen(a.dashboard, level),
-        renewalHari,
-        nilaiTahunan: a.nilaiTahunan,
-        rupiahBerisiko: rupiah,
+        score,
+        diverges: divergesFromDashboard(a.dashboard, level),
+        renewalDays,
+        annualValue: a.annualValue,
+        atRiskValue: amount,
         p,
-        sinyalTeratas: sinyalTeratas(sinyal, cfg.maksSinyalTeratas),
+        topSignals: topSignals(signals, cfg.maxTopSignals),
       };
     })
-    .sort(bandingBaris);
+    .sort(compareRows);
 }
 
-// Pendamping susunRiskRows: sinyal yang tidak ikut dihitung, untuk dilog/dilaporkan pemanggil.
-export function sinyalDiabaikan(akunList: AkunInfo[], sinyalSemua: Sinyal[]) {
-  const dikenal = new Set(akunList.map((a) => a.akun));
+/** Companion of buildRiskRows: signals that were not counted, for the caller to log or report. */
+export function ignoredSignals(accounts: AccountInfo[], allSignals: Signal[]) {
+  const known = new Set(accounts.map((a) => a.account));
   return {
-    akunTakDikenal: sinyalSemua.filter((s) => !dikenal.has(s.akun)),
-    bobotTidakValid: sinyalSemua.filter((s) => dikenal.has(s.akun) && !bobotValid(s)),
+    unknownAccount: allSignals.filter((s) => !known.has(s.account)),
+    invalidWeight: allSignals.filter((s) => known.has(s.account) && !isValidWeight(s)),
   };
 }

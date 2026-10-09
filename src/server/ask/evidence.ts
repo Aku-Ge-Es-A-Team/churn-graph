@@ -1,25 +1,24 @@
 import { z } from "zod";
 import type { GraphPayload } from "../../types/graph";
 
-// Kontrak hasil tool Tanya Graph (tool-nya dibuat nanti):
+// Contract of a Q&A tool result (the tools themselves are built later):
 //   { data: unknown, evidence: EvidenceItem[] }
-// `evidence` berisi SEMUA node/edge yang benar-benar dikembalikan query tool itu.
-// Validator sitasi hanya memercayai ID yang masuk registry lewat jalur ini,
-// bukan ID yang disebut LLM dari ingatan.
+// `evidence` holds ALL nodes/edges the tool query actually returned. The citation validator only trusts
+// IDs that entered the registry this way, never IDs the LLM mentions from memory.
 
 export const EvidenceItemSchema = z.object({
   id: z.string().min(1),
   source_file: z.string().min(1),
   source_id: z.string().min(1),
-  teks: z.string().optional(),
-  // Tambahan di luar kontrak minimal: dipakai pemeriksaan angka (aturan 4), bukan kutipan.
+  text: z.string().optional(),
+  // Beyond the minimal contract: used by the number check (rule 4), not by the quote check.
   props: z.record(z.string(), z.unknown()).optional(),
 });
 export type EvidenceItem = z.infer<typeof EvidenceItemSchema>;
 
-// Kunci props yang dianggap "teks sumber" untuk pemeriksaan kutipan. Skema label milik
-// Adrian dan belum final, jadi ubah daftar ini bila nama propertinya berbeda.
-export const TEXT_PROP_KEYS = ["teks", "isi", "judul", "deskripsi", "keputusan", "alasan"];
+// Property keys treated as "source text" for the quote check. These are graph property names
+// (dataset vocabulary: isi = body, judul = title, deskripsi = description, ...); extend when the schema grows.
+export const TEXT_PROP_KEYS = ["text", "isi", "judul", "deskripsi", "keputusan", "alasan", "subjek"];
 
 export class EvidenceRegistry {
   private items = new Map<string, EvidenceItem>();
@@ -27,18 +26,18 @@ export class EvidenceRegistry {
   add(input: EvidenceItem | EvidenceItem[]): void {
     for (const item of Array.isArray(input) ? input : [input]) {
       if (!item?.id) continue;
-      const prev = this.items.get(item.id);
-      if (!prev) {
+      const previous = this.items.get(item.id);
+      if (!previous) {
         this.items.set(item.id, { ...item });
         continue;
       }
-      // Gabung aman: nilai yang sudah ada tidak ditimpa nilai kosong; yang pertama menang bila keduanya terisi.
+      // Safe merge: existing values are not overwritten by empty ones; the first value wins when both are set.
       this.items.set(item.id, {
-        id: prev.id,
-        source_file: prev.source_file || item.source_file,
-        source_id: prev.source_id || item.source_id,
-        teks: prev.teks || item.teks,
-        props: prev.props ?? item.props,
+        id: previous.id,
+        source_file: previous.source_file || item.source_file,
+        source_id: previous.source_id || item.source_id,
+        text: previous.text || item.text,
+        props: previous.props ?? item.props,
       });
     }
   }
@@ -61,9 +60,7 @@ export class EvidenceRegistry {
 }
 
 function textFromProps(props: Record<string, unknown>): string | undefined {
-  const parts = TEXT_PROP_KEYS.map((k) => props[k]).filter(
-    (v): v is string => typeof v === "string" && v.trim() !== "",
-  );
+  const parts = TEXT_PROP_KEYS.map((k) => props[k]).filter((v): v is string => typeof v === "string" && v.trim() !== "");
   return parts.length ? parts.join("\n") : undefined;
 }
 
@@ -72,13 +69,13 @@ export function evidenceFromGraphPayload(payload: GraphPayload): EvidenceItem[] 
     id: x.id,
     source_file: x.source_file,
     source_id: x.source_id,
-    teks: textFromProps(x.props),
+    text: textFromProps(x.props),
     props: x.props,
   }));
 }
 
-// Defensif: hasil tool berbentuk aneh atau item bukti yang tidak lengkap diabaikan diam-diam.
-// Mengembalikan jumlah item yang diterima.
+// Defensive: oddly shaped tool results or incomplete evidence items are silently skipped.
+// Returns the number of accepted items.
 export function collectEvidence(toolResults: unknown, registry: EvidenceRegistry): number {
   if (!Array.isArray(toolResults)) return 0;
   let accepted = 0;
