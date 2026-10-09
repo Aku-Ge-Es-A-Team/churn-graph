@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { RankingBoard } from "@/components/ranking/ranking-board";
+import { RiskSummary } from "@/components/ranking/risk-summary";
 import { getRanking } from "@/server/queries";
 
 async function RankingContent() {
@@ -15,6 +16,7 @@ async function RankingContent() {
           Ranked customer risk findings from the context graph, with renewal timing, estimated exposure, and evidence-backed signals.
         </p>
       </header>
+      <RiskSummary rows={rows} />
       <RankingBoard rows={rows} />
     </main>
   );
