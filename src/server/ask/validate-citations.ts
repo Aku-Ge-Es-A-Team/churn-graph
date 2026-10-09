@@ -22,6 +22,9 @@ export type ValidationResult = {
 
 const MIN_QUOTE_LENGTH = 8;
 const NUMBER_TOKEN = /\d+(?:[.,]\d+)*/g;
+// Identifiers such as C10, I0290, D-2025-11, BUG-412 or v4.12: their digits are not quantities, so they are skipped.
+// A rupiah amount written without a space ("Rp129.444.000") is a quantity and is still checked.
+const ID_WORD = /\b(?!Rp\d)[A-Za-z]+(?:-[A-Za-z]+)*-?\d[\w.-]*/gi;
 
 export function normalizeText(s: string): string {
   return s
@@ -49,7 +52,7 @@ function numberValues(text: string): Set<number> {
 function numbersMissing(claimText: string, sources: EvidenceItem[]): boolean {
   const haystack = sources.map((s) => `${s.text ?? ""} ${JSON.stringify(s.props ?? {})}`).join(" ");
   const available = numberValues(haystack);
-  for (const [token] of claimText.matchAll(NUMBER_TOKEN)) {
+  for (const [token] of claimText.replace(ID_WORD, " ").matchAll(NUMBER_TOKEN)) {
     if (![...numberValues(token)].some((v) => available.has(v))) return true;
   }
   return false;
