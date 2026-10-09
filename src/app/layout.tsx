@@ -16,26 +16,26 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Nama produk masih sementara (PRD A1).
+// The product name is provisional (PRD A1).
 export const metadata: Metadata = {
   title: { default: "Churn Early Warning Graph", template: "%s · Churn Early Warning Graph" },
-  description: "Peringatan dini churn pelanggan berbasis context graph, lengkap dengan jalur bukti.",
+  description: "Early warning for customer churn built on a context graph, with an evidence path for every finding.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="id"
+      lang="en"
       className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
     >
       <body className="min-h-full flex flex-col">
         <header className="border-b bg-background text-foreground">
-          <nav aria-label="Navigasi utama" className="mx-auto flex w-full max-w-5xl items-center gap-6 px-6 py-3">
+          <nav aria-label="Main navigation" className="mx-auto flex w-full max-w-6xl items-center gap-6 px-6 py-3">
             <Link href="/" className="font-semibold">
               Churn Early Warning Graph
             </Link>
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
-              Peringkat risiko
+              Risk ranking
             </Link>
           </nav>
         </header>

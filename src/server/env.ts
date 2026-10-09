@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Dibaca lazy agar `next build` tidak gagal hanya karena env belum diisi.
+// Read lazily so that `next build` does not fail just because the environment is not filled in.
 const neo4jSchema = z.object({
   NEO4J_URI: z.string().min(1),
   NEO4J_USERNAME: z.string().min(1),
@@ -8,19 +8,19 @@ const neo4jSchema = z.object({
   NEO4J_DATABASE: z.string().min(1),
 });
 
-// Provider LLM = endpoint OpenAI-compatible 9router (keputusan final). Lihat src/server/ai/provider.ts.
+// LLM provider = OpenAI-compatible 9router endpoint (final decision). See src/server/ai/provider.ts.
 const llmSchema = z.object({
-  LLM_BASE_URL: z.url(), // mis. https://host/v1 (tanpa /chat/completions)
+  LLM_BASE_URL: z.url(), // e.g. https://host/v1 (without /chat/completions)
   LLM_API_KEY: z.string().min(1),
-  LLM_MODEL: z.string().min(1), // id persis dari GET {LLM_BASE_URL}/models
+  LLM_MODEL: z.string().min(1), // exact id from GET {LLM_BASE_URL}/models
 });
 
 function parse<T extends z.ZodType>(schema: T, group: string): z.infer<T> {
   const result = schema.safeParse(process.env);
   if (!result.success) {
-    // Hanya nama variabel yang disebut, nilainya tidak.
+    // Only variable names are reported, never their values.
     const missing = result.error.issues.map((i) => i.path.join(".")).join(", ");
-    throw new Error(`Env ${group} belum lengkap: ${missing}. Isi di .env.local (lihat .env.example).`);
+    throw new Error(`${group} environment is incomplete: ${missing}. Fill it in .env.local (see .env.example).`);
   }
   return result.data;
 }
