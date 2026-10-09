@@ -7,9 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { formatCompactIdr, formatFullIdr } from "@/lib/ranking";
 import { checkDiscountProposal } from "@/server/queries/precedents";
-import type { DiscountPolicy, RetentionAction, RetentionCard, RetentionJudgement } from "@/types/graph";
-
-const DISCOUNT_FIT_WARNING = 0.3;
+import type { DiscountPolicy, RetentionAction, RetentionCard } from "@/types/graph";
 
 function DiscountTester({ policy }: { policy: DiscountPolicy }) {
   const [value, setValue] = useState("");
