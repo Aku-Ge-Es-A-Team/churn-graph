@@ -1,12 +1,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { graphC01Fixture } from "@/fixtures/graph-c01";
+import { graphC01Fixture, graphC01Highlight } from "@/fixtures/graph-c01";
 import { riskRowsFixture } from "@/fixtures/risk-rows";
 import type { GraphPayload } from "@/types/graph";
 
 // Skeleton /akun/[id] (T00-11): fixture sementara; diganti getAccountEvidence() di F-08.
 const graphFixtures: Record<string, GraphPayload> = { C01: graphC01Fixture };
+const highlightFixtures: Record<string, string[]> = { C01: graphC01Highlight };
 
 // Area yang diisi fitur lain; dibiarkan kosong bernama di skeleton.
 const AREA_KOSONG = [
@@ -17,8 +18,9 @@ const AREA_KOSONG = [
 ];
 
 function AkunDetail({ id }: { id: string }) {
-  const row = riskRowsFixture.find((r) => r.id === id);
+  const row = riskRowsFixture.find((r) => r.akun === id);
   const graph = graphFixtures[id];
+  const highlight = highlightFixtures[id] ?? [];
   const namaNode = new Map(graph?.nodes.map((n) => [n.id, n.label]) ?? []);
 
   return (
@@ -42,12 +44,12 @@ function AkunDetail({ id }: { id: string }) {
           <Card>
             <CardHeader>
               <CardTitle>Node ({graph.nodes.length})</CardTitle>
-              <CardDescription>Disorot: {graph.highlight.join(", ")}</CardDescription>
+              <CardDescription>Disorot: {highlight.join(", ")}</CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="flex flex-col gap-1">
                 {graph.nodes.map((n) => (
-                  <li key={n.key} className={graph.highlight.includes(n.id) ? "font-medium" : undefined}>
+                  <li key={n.id} className={highlight.includes(n.id) ? "font-medium" : undefined}>
                     <span className="tabular-nums">{n.id}</span> <span className="text-muted-foreground">:{n.label}</span>{" "}
                     {typeof n.props.nama === "string" ? n.props.nama : typeof n.props.subjek === "string" ? n.props.subjek : typeof n.props.judul === "string" ? n.props.judul : ""}
                     <span className="block text-xs text-muted-foreground">
@@ -66,10 +68,10 @@ function AkunDetail({ id }: { id: string }) {
             <CardContent>
               <ul className="flex flex-col gap-1">
                 {graph.edges.map((e) => (
-                  <li key={e.key}>
-                    ({e.from}
-                    <span className="text-muted-foreground">:{namaNode.get(e.from)}</span>)-[:{e.type}]→({e.to}
-                    <span className="text-muted-foreground">:{namaNode.get(e.to)}</span>)
+                  <li key={e.id}>
+                    ({e.source}
+                    <span className="text-muted-foreground">:{namaNode.get(e.source)}</span>)-[:{e.type}]→({e.target}
+                    <span className="text-muted-foreground">:{namaNode.get(e.target)}</span>)
                     {e.derived ? <span className="ml-1 text-xs text-muted-foreground">turunan</span> : null}
                     <span className="block text-xs text-muted-foreground">
                       {String(e.props.source_file)} · {String(e.props.source_id)}

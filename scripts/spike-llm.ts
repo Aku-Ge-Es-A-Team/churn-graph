@@ -1,35 +1,27 @@
 // SPIKE T00-12 -- skrip sementara, BUKAN bagian aplikasi (hapus/abaikan setelah A8 tervalidasi).
-// Tujuan: membuktikan satu tool call lewat Vercel AI SDK ke endpoint OpenAI-compatible (9router).
+// Tujuan: membuktikan satu tool call lewat Vercel AI SDK ke endpoint OpenAI-compatible 9router,
+// memakai klien yang sama dengan aplikasi (src/server/ai/provider.ts).
 // Jalankan: bun scripts/spike-llm.ts   (Bun memuat .env.local otomatis)
-//
-// Env (nama USULAN, belum ada di dokumen -- PRD A8 / 00_Fondasi §2 menyebut `<LLM_API_KEY sesuai provider>`):
-//   LLM_BASE_URL  base URL OpenAI-compatible, mis. https://host/v1  (tanpa /chat/completions)
-//   LLM_API_KEY   key untuk header Authorization: Bearer
-//   LLM_MODEL     id model PERSIS seperti yang ditampilkan GET {LLM_BASE_URL}/models
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+// Env: LLM_BASE_URL, LLM_API_KEY, LLM_MODEL (lihat .env.example).
 import { generateText, isStepCount, tool } from "ai";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
+import { getLlmModel } from "../src/server/ai/provider";
 
-const REQUIRED = ["LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL"] as const;
-const missing = REQUIRED.filter((key) => !process.env[key]);
-if (missing.length > 0) {
-  console.error(`Env belum di-set: ${missing.join(", ")}. Isi di .env.local (lihat .env.example).`);
+let model: ReturnType<typeof getLlmModel>;
+try {
+  model = getLlmModel();
+} catch (error) {
+  console.error(String((error as Error).message));
   process.exit(2);
 }
-
-const provider = createOpenAICompatible({
-  name: "9router",
-  baseURL: process.env.LLM_BASE_URL!.replace(/\/+$/, ""),
-  apiKey: process.env.LLM_API_KEY!,
-});
 
 // Nonce acak: model tidak mungkin menebaknya, jadi muncul di jawaban hanya bila tool benar-benar dipanggil dan hasilnya kembali.
 const nonce = randomBytes(4).toString("hex");
 
 try {
   const result = await generateText({
-    model: provider.chatModel(process.env.LLM_MODEL!),
+    model,
     tools: {
       ambil_kode_verifikasi: tool({
         description: "Mengambil kode verifikasi sesi saat ini. Wajib dipanggil; kode tidak bisa ditebak.",
@@ -52,7 +44,7 @@ try {
   process.exit(ok ? 0 : 1);
 } catch (error) {
   // Hanya status/pesan; header (berisi API key) tidak pernah dicetak.
-  const e = error as { name?: string; statusCode?: number; message?: string; url?: string };
+  const e = error as { name?: string; statusCode?: number; message?: string };
   console.error(`SPIKE ERROR: ${e.name ?? "Error"}${e.statusCode ? ` HTTP ${e.statusCode}` : ""} -- ${String(e.message).slice(0, 300)}`);
   process.exit(1);
 }

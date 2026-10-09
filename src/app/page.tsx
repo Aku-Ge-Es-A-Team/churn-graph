@@ -33,21 +33,24 @@ export default function Home() {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id} className="border-t">
+                <tr key={row.akun} className="border-t">
                   <th scope="row" className="p-3 text-left font-medium">
-                    <Link href={`/akun/${row.id}`} className="underline-offset-4 hover:underline">
-                      {row.id} · {row.nama}
+                    <Link href={`/akun/${row.akun}`} className="underline-offset-4 hover:underline">
+                      {row.akun} · {row.nama}
                     </Link>
                   </th>
                   <td className="p-3">{row.level}</td>
-                  <td className="p-3">{row.dashboard}</td>
+                  <td className="p-3">
+                    {row.dashboard}
+                    {row.divergen ? <span className="ml-1 text-xs font-medium text-destructive">divergen</span> : null}
+                  </td>
                   <td className="p-3 text-right tabular-nums">{row.skor}</td>
                   <td className="p-3 text-right tabular-nums">
-                    {row.renewal} <span className="text-muted-foreground">(H-{row.hariKeRenewal})</span>
+                    {row.renewalHari === null ? "—" : `H-${row.renewalHari}`}
                   </td>
-                  <td className="p-3 text-right tabular-nums">{rupiah.format(row.nilaiBerisiko)}</td>
+                  <td className="p-3 text-right tabular-nums">{rupiah.format(row.rupiahBerisiko)}</td>
                   <td className="p-3 text-muted-foreground">
-                    {row.sinyal.length > 0 ? row.sinyal.map((s) => s.kode).join(", ") : "—"}
+                    {row.sinyalTeratas.length > 0 ? row.sinyalTeratas.map((s) => s.kode).join(", ") : "—"}
                   </td>
                 </tr>
               ))}
