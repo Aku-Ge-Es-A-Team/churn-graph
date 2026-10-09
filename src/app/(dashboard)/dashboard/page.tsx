@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { routes } from "@/lib/site-config";
 import { riskRowsFixture } from "@/fixtures/risk-rows";
 
-// Skeleton "/" (T00-11): sumber data sementara = fixture; diganti getRanking() di F-05/F-11.
+// Skeleton /dashboard (T00-11, dulu "/"): sumber data sementara = fixture; diganti getRanking() di F-05/F-11.
 const rupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 
 export default function Home() {
@@ -35,7 +36,7 @@ export default function Home() {
               {rows.map((row) => (
                 <tr key={row.akun} className="border-t">
                   <th scope="row" className="p-3 text-left font-medium">
-                    <Link href={`/akun/${row.akun}`} className="underline-offset-4 hover:underline">
+                    <Link href={routes.account(row.akun)} className="underline-offset-4 hover:underline">
                       {row.akun} · {row.nama}
                     </Link>
                   </th>

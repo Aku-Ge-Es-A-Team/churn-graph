@@ -1,5 +1,5 @@
 // Fixture GraphPayload jalur bukti C01 (T00-10), dari Brief §4 dan data/raw.
-// Dipakai /akun/[id] sampai getAccountEvidence() (F-08) tersedia.
+// Dipakai /accounts/[id] sampai getAccountEvidence() (F-08) tersedia.
 // Mengikuti kontrak GraphPayload versi `src/types/graph.ts` (draf Dio, hasil merge 2026-10-09).
 // Asumsi fixture (ditinjau di PR):
 // - id relasi = `${type}:${source}->${target}` (format belum ditetapkan dokumen).

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
-import { siteConfig, type NavLink } from "@/lib/site-config";
+import { routes, siteConfig, type NavLink } from "@/lib/site-config";
 
 type SiteNavbarProps = {
   /** Tautan tengah. Default: navigasi landing page. */
@@ -20,7 +20,7 @@ type SiteNavbarProps = {
 export function SiteNavbar({
   links = siteConfig.landingNav,
   cta = siteConfig.primaryCta,
-  homeHref = siteConfig.landingHref,
+  homeHref = routes.home,
   className,
 }: SiteNavbarProps) {
   return (

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: siteConfig.description,
 };
 
-// Landing page. Rute sementara `/landing` karena `/` dikunci untuk Radar (PRD F-11); dipindah bila tim memutuskan.
+// Landing page di `/` (keputusan Tegar 2026-10-10). Radar F-11 pindah ke `/dashboard`.
 export default function LandingPage() {
   return (
     <div className="min-h-full bg-paper text-ink">

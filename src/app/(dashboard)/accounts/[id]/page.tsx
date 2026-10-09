@@ -1,11 +1,12 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { routes } from "@/lib/site-config";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { graphC01Fixture, graphC01Highlight } from "@/fixtures/graph-c01";
 import { riskRowsFixture } from "@/fixtures/risk-rows";
 import type { GraphPayload } from "@/types/graph";
 
-// Skeleton /akun/[id] (T00-11): fixture sementara; diganti getAccountEvidence() di F-08.
+// Skeleton /accounts/[id] (T00-11, dulu /akun/[id]): fixture sementara; diganti getAccountEvidence() di F-08.
 const graphFixtures: Record<string, GraphPayload> = { C01: graphC01Fixture };
 const highlightFixtures: Record<string, string[]> = { C01: graphC01Highlight };
 
@@ -101,10 +102,10 @@ function AkunDetail({ id }: { id: string }) {
   );
 }
 
-export default function AkunPage({ params }: PageProps<"/akun/[id]">) {
+export default function AkunPage({ params }: PageProps<"/accounts/[id]">) {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
-      <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
+      <Link href={routes.dashboard} className="text-sm text-muted-foreground hover:text-foreground">
         ← Kembali ke peringkat
       </Link>
       {/* cacheComponents: params adalah data runtime, aksesnya wajib di dalam Suspense */}

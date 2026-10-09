@@ -1,4 +1,4 @@
-// Fixture RiskRow[] untuk skeleton "/" (T00-10) -- dipakai sampai getRanking() (F-05) tersedia.
+// Fixture RiskRow[] untuk skeleton /dashboard (T00-10) -- dipakai sampai getRanking() (F-05) tersedia.
 // Mengikuti kontrak RiskRow versi `src/types/graph.ts` (draf Dio, hasil merge 2026-10-09).
 // Level, renewal, dan nilai dari Brief §4 + data/raw (crm_accounts, contracts_billing).
 // skor = jumlah bobot sinyal (ilustratif, belum dikalibrasi). renewalHari dihitung terhadap SNAPSHOT_DATE 2026-10-01.
