@@ -72,8 +72,8 @@ export function filterFocus(rows: RiskRow[], focusIds: readonly string[]): RiskR
 
 /** Tailwind classes per level. Colour is never the only cue: the level text is always rendered too. */
 export const LEVEL_STYLES: Record<Level, { badge: string; row: string }> = {
-  Critical: { badge: "bg-red-600 text-white", row: "bg-red-50 dark:bg-red-950/40" },
-  High: { badge: "bg-orange-500 text-white", row: "bg-orange-50 dark:bg-orange-950/40" },
-  Watch: { badge: "bg-amber-400 text-black", row: "bg-amber-50 dark:bg-amber-950/30" },
-  Safe: { badge: "bg-emerald-600 text-white", row: "" },
+  Critical: { badge: "bg-[#b8352a] text-white", row: "bg-[#f6e3de] hover:bg-[#f1d8d2] dark:bg-red-950/40" },
+  High: { badge: "bg-[#b9652b] text-white", row: "bg-[#f5e8dc] hover:bg-[#f0dfd0] dark:bg-orange-950/40" },
+  Watch: { badge: "bg-[#d4a03f] text-[#1f1a16]", row: "bg-[#f6eedc] hover:bg-[#f1e6cf] dark:bg-amber-950/30" },
+  Safe: { badge: "bg-[#3f7d57] text-white", row: "" },
 };

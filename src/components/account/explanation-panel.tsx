@@ -11,7 +11,7 @@ export function ExplanationPanel({ explanation }: { explanation: AccountExplanat
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           Rule checks
-          <Badge className={status === "consistent" ? "bg-emerald-600 text-white" : "bg-orange-500 text-white"}>
+          <Badge className={status === "consistent" ? "bg-[#3f7d57] text-white" : "bg-[#b9652b] text-white"}>
             {status === "consistent" ? "Consistent" : "Findings present"}
           </Badge>
         </CardTitle>
@@ -22,7 +22,7 @@ export function ExplanationPanel({ explanation }: { explanation: AccountExplanat
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <ul className="grid gap-1 sm:grid-cols-2">
+        <ul className="grid gap-1.5">
           {rules.map((r) => (
             <li key={r.code} className="flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-xs">
               <span>{signalLabel(r.code)}</span>

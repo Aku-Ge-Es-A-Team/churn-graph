@@ -12,7 +12,7 @@ import { AskResponseSchema, type AskResponse } from "@/types/graph";
 
 type State = { kind: "idle" } | { kind: "loading"; question: string } | { kind: "error"; question: string; message: string } | { kind: "done"; question: string; response: AskResponse };
 
-const TONE = { ok: "bg-emerald-600 text-white", warn: "bg-amber-400 text-black", error: "bg-destructive text-white" } as const;
+const TONE = { ok: "bg-[#3f7d57] text-white", warn: "bg-[#d4a03f] text-[#1f1a16]", error: "bg-destructive text-white" } as const;
 
 function EvidenceChip({ id }: { id: string }) {
   const href = evidenceHref(id, routes.account);
@@ -67,7 +67,7 @@ export function AskPanel({ presets }: { presets: readonly string[] }) {
   const loading = state.kind === "loading";
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid items-start gap-4 lg:grid-cols-3">
       <Card size="sm" className="lg:col-span-2">
         <CardHeader>
           <CardTitle>Ask a question</CardTitle>

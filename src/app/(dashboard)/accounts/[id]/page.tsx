@@ -12,7 +12,7 @@ import { WhatIfPanel } from "@/components/account/what-if-panel";
 import { EvidenceGraph } from "@/components/evidence/evidence-graph";
 import { LinkButton } from "@/components/link-button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader } from "@/components/ui/card";
 import { LEVEL_STYLES, formatCompactIdr, formatFullIdr, renewalLabel } from "@/lib/ranking";
 import { routes } from "@/lib/site-config";
 import { accountMarkdown, markdownFileName } from "@/lib/account-markdown";
@@ -22,12 +22,12 @@ import { referenceDate } from "@/server/queries/risk";
 
 function Stat({ label, value, hint, title }: { label: string; value: string; hint?: string; title?: string }) {
   return (
-    <Card size="sm" className="h-full">
-      <CardHeader>
+    <Card className="h-full gap-1">
+      <CardHeader className="gap-1">
         <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-2xl font-semibold tabular-nums" title={title}>
+        <p className="font-heading text-2xl font-semibold tracking-tight tabular-nums md:text-3xl" title={title}>
           {value}
-        </CardTitle>
+        </p>
         {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
       </CardHeader>
     </Card>

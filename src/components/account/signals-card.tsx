@@ -7,7 +7,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { signalLabel } from "@/lib/ranking";
 import type { Signal } from "@/types/graph";
 
-const config = { weight: { label: "Weight", color: "var(--chart-1)" } } satisfies ChartConfig;
+const config = { weight: { label: "Weight", color: "var(--chart-2)" } } satisfies ChartConfig;
 
 /** Readable value of a fact: arrays joined, objects flattened, nothing left as raw JSON. */
 export function factValue(v: unknown): string {
@@ -40,7 +40,7 @@ export function SignalsCard({ signals }: { signals: Signal[] }) {
               <XAxis type="number" dataKey="weight" allowDecimals={false} hide />
               <YAxis type="category" dataKey="label" tickLine={false} axisLine={false} width={170} tick={{ fontSize: 12 }} />
               <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-              <Bar dataKey="weight" fill="var(--color-weight)" radius={6} barSize={22}>
+              <Bar dataKey="weight" fill="var(--color-weight)" radius={6} barSize={22} isAnimationActive={false}>
                 <LabelList dataKey="weight" position="right" className="fill-foreground" fontSize={12} />
               </Bar>
             </BarChart>

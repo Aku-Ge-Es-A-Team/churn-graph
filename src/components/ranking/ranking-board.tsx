@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronRightIcon } from "lucide-react";
 import { routes } from "@/lib/site-config";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +34,7 @@ export function RankingBoard({ rows }: { rows: RiskRow[] }) {
         </Button>
       </div>
 
-      <section aria-label="Legend" className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+      <section aria-label="Legend" className="rounded-xl border bg-card p-3 text-xs text-muted-foreground shadow-xs">
         <p className="font-medium text-foreground">At-risk value is an ESTIMATE = annual contract value × p(level). p is a team assumption, not a model output.</p>
         <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
           {legend.map((l) => (
@@ -47,11 +48,11 @@ export function RankingBoard({ rows }: { rows: RiskRow[] }) {
       {visible.length === 0 ? (
         <p className="rounded-lg border p-8 text-center text-muted-foreground">None of the focus accounts is present in this data.</p>
       ) : (
-        <div className="rounded-lg border">
+        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
           <Table>
             <TableCaption className="sr-only">Customer accounts ranked by churn risk</TableCaption>
             <TableHeader>
-              <TableRow className="hover:bg-transparent">
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead>#</TableHead>
                 <TableHead>Account</TableHead>
                 <TableHead>Level</TableHead>
@@ -66,8 +67,14 @@ export function RankingBoard({ rows }: { rows: RiskRow[] }) {
                 <TableRow key={row.account} className={row.diverges ? LEVEL_STYLES[row.level].row : undefined} data-account={row.account}>
                   <TableCell className="tabular-nums text-muted-foreground">{rows.indexOf(row) + 1}</TableCell>
                   <TableCell>
-                    <Link href={routes.account(row.account)} className={buttonVariants({ variant: "outline", size: "sm", className: "h-auto max-w-full justify-start py-1 text-left whitespace-normal" })}>
-                      {row.account} · {row.name}
+                    <Link
+                      href={routes.account(row.account)}
+                      className={buttonVariants({ variant: "ghost", size: "sm", className: "-ml-2 h-auto max-w-full justify-start gap-1 py-1 text-left font-semibold whitespace-normal" })}
+                    >
+                      <span>
+                        {row.account} · {row.name}
+                      </span>
+                      <ChevronRightIcon className="text-muted-foreground" />
                     </Link>
                     <div className="text-xs text-muted-foreground">score {row.score.toFixed(2)}</div>
                   </TableCell>
@@ -75,13 +82,11 @@ export function RankingBoard({ rows }: { rows: RiskRow[] }) {
                     <Badge className={LEVEL_STYLES[row.level].badge}>{row.level}</Badge>
                   </TableCell>
                   <TableCell>
-                    {row.diverges ? (
-                      <Badge className="bg-foreground text-background">
-                        Dashboard: {row.dashboard} vs Findings: {row.level}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">{row.dashboard}</span>
-                    )}
+                    <span className="flex flex-wrap items-center gap-1.5 text-xs">
+                      <span aria-hidden className={`size-2 rounded-full ${row.dashboard === "Green" ? "bg-[#3f7d57]" : row.dashboard === "Yellow" ? "bg-[#d4a03f]" : "bg-[#b8352a]"}`} />
+                      <span className="text-muted-foreground">Dashboard {row.dashboard}</span>
+                      {row.diverges ? <Badge className="bg-foreground text-background">differs: {row.level}</Badge> : null}
+                    </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{renewalLabel(row.renewalDays)}</TableCell>
                   <TableCell className="text-right tabular-nums" title={`${formatFullIdr(row.atRiskValue)} (p = ${row.p})`}>
@@ -90,10 +95,10 @@ export function RankingBoard({ rows }: { rows: RiskRow[] }) {
                   </TableCell>
                   <TableCell>
                     {row.topSignals.length ? (
-                      <ul className="flex flex-col gap-0.5">
+                      <ul className="flex min-w-56 max-w-80 flex-wrap gap-1">
                         {row.topSignals.map((s) => (
-                          <li key={`${s.code}-${s.since}`} className="text-xs">
-                            {signalLabel(s.code)} <span className="text-muted-foreground">(w{s.weight})</span>
+                          <li key={`${s.code}-${s.since}`} className="rounded-md border bg-background px-1.5 py-0.5 text-xs whitespace-nowrap">
+                            {signalLabel(s.code)} <span className="text-muted-foreground">w{s.weight}</span>
                           </li>
                         ))}
                       </ul>
