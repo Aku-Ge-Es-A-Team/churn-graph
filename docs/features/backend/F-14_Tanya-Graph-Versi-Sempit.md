@@ -1,5 +1,5 @@
 # 13 -- Tanya Graph versi sempit
-> ID PRD: F-14 · Prioritas: Must · Penanggung jawab: Dio (Backend & AI) · Estimasi: 3 jam-orang (PRD); total task 6,75 jam · Status: Belum dimulai
+> ID PRD: F-14 · Prioritas: Must · Penanggung jawab: Dio (Backend & AI) · Estimasi: 3 jam-orang (PRD); total task 6,75 jam · Status: Implementasi selesai (T13-01 s.d. T13-07; T13-08 evaluasi 12 preset dan T13-09 belum dijalankan)
 
 ## 1. Ringkasan Fitur
 - Apa: `POST /api/ask` -- Q&A bahasa Indonesia atas graph lewat Vercel AI SDK dengan tool calling terbatas pada tool tetap (ranking, sinyal, bukti, preseden, teks, koneksi). Keluaran `{jawaban, klaim[]}` selalu melewati validator F-10; halaman `/tanya` menampilkan jawaban dan chip ID bukti.
@@ -94,6 +94,8 @@
 - ✅ KEPUTUSAN (K-A, 2026-10-09, Adrian): Prisma + Supabase dihapus dari repo; penyimpanan graph hanya Neo4j AuraDB Free (PRD §9, Rencana Teknis §2.3). Fitur ini tidak memakai Prisma/Supabase.
 - ⛔ KONFLIK (K-G): Rencana Teknis Langkah 9 menaruh `run_cypher` sebagai "lanjutan" dari Tanya Graph, PRD menaruhnya sebagai F-28 (Could) di luar F-14 -- dipakai sementara: ikuti PRD; `run_cypher`, ringkasan skema, dan 5 contoh Cypher tidak dibangun di file ini.
 - ⛔ KONFLIK: PRD F-14 menetapkan keluaran `{jawaban, klaim[]}`, sedangkan Rencana Teknis Langkah 8 (tabel) menyebut `POST /api/ask` mengembalikan "Stream narasi + klaim[] + GraphPayload" -- dipakai sementara: PRD sebagai dasar acceptance criteria; respons dibuat superset `{jawaban, klaim[], graph}` (nama field `graph` ⚠️ ASUMSI) tanpa streaming teks mentah agar validator F-10 tidak terlewati.
+- 🔁 USULAN PERUBAHAN (diterapkan): `scripts/demo-ask.ts` (alat validasi manual, bukan endpoint); tombol contoh pertanyaan di `/tanya` (bukan preset F-15); `validate-citations.ts` kini memasukkan ID bukti ke teks pencarian angka, agar klaim yang menyebut ID seperti `I0331` tidak ditandai "perlu verifikasi" hanya karena angka pada ID.
+- ⚠️ CATATAN IMPLEMENTASI: model 9router tidak patuh pada format JSON di akhir loop tool. Pipeline menerima JSON bila ada, jika tidak memakai baris dengan ID dalam tanda kurung siku (`[I0290]`), dan bila tidak ada sitasi sama sekali satu panggilan perbaikan tanpa tool menulis ulang jawaban dari hasil tool. Semua ID tetap divalidasi terhadap registry. Pertanyaan yang tidak memicu tool ditolak. Waktu jawaban terukur sekitar 10-20 detik.
 - 🔁 USULAN PERUBAHAN: bila T13-08 menunjukkan pertanyaan kompetensi 8 dan 12 (dan mungkin 4) tidak dapat dijawab oleh enam tool tetap, tambahkan tool pembaca khusus (mis. riwayat jabatan kontak dan batas paket outlet) -- alasan: PRD menetapkan "tool tetap" dan memotong `run_cypher`, tetapi gerbang J12 butuh ≥6/12 dan target J15 ≥10/12. Belum ada task yang bergantung; keputusan diambil setelah T13-08.
 - 🔁 USULAN PERUBAHAN: tambahkan field opsional `kutipan[]` pada klaim (lihat 09, F-10) -- alasan: validasi substring deterministik; sementara kutipan diekstrak dari tanda petik.
 - Risiko: LLM lambat/gagal saat demo live (internet venue, kuota) -- mitigasi: F-15 cache preset, konsol Aura, video cadangan; batas pengeluaran di dashboard provider (Rencana Teknis Langkah 12).
