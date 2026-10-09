@@ -30,6 +30,8 @@ export type Decision = {
   evidenceInteractionId: string | null;
   /** Dataset text such as "Ditepati (rilis Feb 2026)" / "Belum ditepati" for feature promises. */
   promiseStatus: string | null;
+  /** ID of the feature this decision promised (via MENJANJIKAN), whatever the decision's own type is. */
+  promisedFeature?: string | null;
   approver: { id: string; name: string; title: string } | null;
 };
 
@@ -44,8 +46,8 @@ export async function fetchDecisions(run: CypherRunner): Promise<Decision[]> {
   const rows = await run(
     `MATCH (d:Keputusan)
      OPTIONAL MATCH (e:Karyawan)-[:MENYETUJUI]->(d)
-     OPTIONAL MATCH (d)-[j:MENJANJIKAN]->(:Fitur)
-     RETURN d.id AS id, d.tipe AS type, d.tanggal AS date, d.keputusan AS outcome, d.nilai_teks AS valueText,
+     OPTIONAL MATCH (d)-[j:MENJANJIKAN]->(f:Fitur)
+     RETURN f.id AS featureId, d.id AS id, d.tipe AS type, d.tanggal AS date, d.keputusan AS outcome, d.nilai_teks AS valueText,
             d.nilai_persen AS valuePct, d.account_id AS account, d.alasan AS reason,
             d.bukti_interaction_id AS evidenceInteractionId, j.status_janji AS promiseStatus,
             e.id AS approverId, e.nama AS approverName, e.jabatan AS approverTitle
@@ -62,6 +64,7 @@ export async function fetchDecisions(run: CypherRunner): Promise<Decision[]> {
     reason: text(r.reason),
     evidenceInteractionId: text(r.evidenceInteractionId),
     promiseStatus: text(r.promiseStatus),
+    promisedFeature: text(r.featureId),
     approver: r.approverId ? { id: String(r.approverId), name: String(r.approverName ?? ""), title: String(r.approverTitle ?? "") } : null,
   }));
 }

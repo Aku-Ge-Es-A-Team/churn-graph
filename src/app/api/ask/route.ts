@@ -1,5 +1,7 @@
 import { askQuestion, FAILURE_MESSAGE, QuestionSchema } from "@/server/ask/ask";
 import { REFUSAL_SUGGESTIONS } from "@/server/ask/presets";
+import { createIntentClassifier } from "@/server/ask/intent";
+import { getJevJudge } from "@/server/ai/jev";
 import { getLlmModel } from "@/server/ai/provider";
 import { readCypher } from "@/server/neo4j";
 import type { CypherRunner } from "@/server/queries/runner";
@@ -35,7 +37,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    return Response.json(await askQuestion(question.data, { model, run }));
+    // JEV AI intent routing is optional: wired only when TYPESAFE_API_KEY is set, otherwise the pipeline runs unchanged.
+    const judge = getJevJudge();
+    return Response.json(await askQuestion(question.data, { model, run, ...(judge ? { classify: createIntentClassifier(judge) } : {}) }));
   } catch (e) {
     console.error("[api/ask] unexpected error:", e instanceof Error ? e.message : e);
     return Response.json({ error: "internal_error", message: "Unexpected error." }, { status: 500 });

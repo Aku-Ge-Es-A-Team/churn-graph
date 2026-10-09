@@ -8,11 +8,16 @@
 //      so far is kept instead of being lost to an abort;
 //   2. submit (only when phase 1 did not already end with the JSON answer): the conversation so far plus a single
 //      output-only tool `submit_answer`, forced with toolChoice "required". It reads no data.
+//
+// JEV AI intent routing (optional): when a classifier is injected, one JEV choice call runs before phase 1. A confident
+// out-of-scope question is refused without the tool loop; any other intent appends a tool hint to the research prompt.
+// Any JEV failure yields null and the pipeline behaves exactly as before.
 import { generateText, isStepCount, tool, type LanguageModel, type ModelMessage } from "ai";
 import { z } from "zod";
 import { ClaimSchema, type AskResponse } from "../../types/graph";
 import type { CypherRunner } from "../queries/runner";
 import { EvidenceRegistry } from "./evidence";
+import { shouldRefuseEarly, toolHint, type ClassifyFn } from "./intent";
 import { REFUSAL_SUGGESTIONS } from "./presets";
 import { SUBMIT_INSTRUCTION, SYSTEM_PROMPT } from "./prompt";
 import { renderAnswer, REFUSAL_MESSAGE } from "./render-answer";
@@ -20,7 +25,7 @@ import { createAskTools } from "./tools";
 import { validateAnswer } from "./validate-citations";
 import { logValidation } from "./validation-log";
 
-// ASSUMPTION (spec §6 starts at 25 s; measured on 9router 2026-10-10: one LLM call takes 6–10 s, submit up to ~18 s):
+// ASSUMPTION (spec §6 starts at 25 s; measured on 9router 2026-10-10: one LLM call takes 6-10 s, submit up to ~18 s):
 // research stops starting new steps after the soft budget, the hard limits abort a hung call.
 // 38 + 20 s stays inside the route's maxDuration of 60 s.
 export const RESEARCH_SOFT_BUDGET_MS = 20_000;
@@ -35,7 +40,7 @@ export const AnswerSchema = z.object({ answer: z.string(), claims: z.array(Claim
 export const FAILURE_MESSAGE =
   "The answer could not be generated right now (the language model or the graph did not respond). Please try a preset question.";
 
-export type AskDeps = { model: LanguageModel; run: CypherRunner };
+export type AskDeps = { model: LanguageModel; run: CypherRunner; classify?: ClassifyFn };
 
 /** Finds the JSON object in the model's final text (tolerates code fences or a sentence around it). */
 export function parseAnswerJson(text: string): unknown {
@@ -93,12 +98,16 @@ export async function askQuestion(question: string, deps: AskDeps): Promise<AskR
   });
 
   const parsedQuestion = QuestionSchema.safeParse(question);
-  if (!parsedQuestion.success) return refused([], 0, "The question must be 3–500 characters long.");
+  if (!parsedQuestion.success) return refused([], 0, "The question must be 3-500 characters long.");
+
+  // JEV AI intent routing (optional). null = JEV unavailable/failed; behave as before.
+  const routed = deps.classify ? await deps.classify(parsedQuestion.data) : null;
+  if (shouldRefuseEarly(routed)) return refused([], 0);
 
   const registry = new EvidenceRegistry();
   const research = await generateText({
     model: deps.model,
-    instructions: SYSTEM_PROMPT,
+    instructions: SYSTEM_PROMPT + toolHint(routed),
     prompt: parsedQuestion.data, // the only trusted instruction; tool data is marked untrusted in the system prompt
     tools: createAskTools(deps.run, registry),
     stopWhen: [isStepCount(MAX_STEPS), () => Date.now() - started > RESEARCH_SOFT_BUDGET_MS],
@@ -110,7 +119,7 @@ export async function askQuestion(question: string, deps: AskDeps): Promise<AskR
   const toolsCalled = research.steps.flatMap((s) => s.toolCalls.map((c) => c.toolName));
   const toolFailed = research.steps.some((s) => s.content.some((part) => part.type === "tool-error"));
   // No tool call means no evidence: the model may not answer from its own knowledge.
-  if (toolsCalled.length === 0) return refused(toolsCalled);
+  if (toolsCalled.length === 0) return refused(toolsCalled, 0);
 
   let output = parseAnswerJson(research.text);
   if (!AnswerSchema.safeParse(output).success) {

@@ -50,7 +50,7 @@ function numberValues(text: string): Set<number> {
 
 // Conservative: EVERY number in the claim must be found in the evidence it cites.
 function numbersMissing(claimText: string, sources: EvidenceItem[]): boolean {
-  const haystack = sources.map((s) => `${s.text ?? ""} ${JSON.stringify(s.props ?? {})}`).join(" ");
+  const haystack = sources.map((s) => `${s.id} ${s.text ?? ""} ${JSON.stringify(s.props ?? {})}`).join(" ");
   const available = numberValues(haystack);
   for (const [token] of claimText.replace(ID_WORD, " ").matchAll(NUMBER_TOKEN)) {
     if (![...numberValues(token)].some((v) => available.has(v))) return true;
