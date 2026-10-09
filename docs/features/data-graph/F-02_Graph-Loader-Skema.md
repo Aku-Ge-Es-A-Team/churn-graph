@@ -1,5 +1,5 @@
 # 02 -- Graph loader & skema
-> ID PRD: F-02 · Prioritas: Must · Penanggung jawab: Adrian (Data Graph) · Estimasi: 1,5 jam-orang (PRD) · Status: Belum dimulai
+> ID PRD: F-02 · Prioritas: Must · Penanggung jawab: Adrian (Data Graph) · Estimasi: 1,5 jam-orang (PRD) · Status: Implementasi selesai dan terverifikasi terhadap Aura (2026-10-09); menunggu review PR
 
 ## 1. Ringkasan Fitur
 - Apa: `scripts/load.ts` dan `cypher/schema.cypher` memuat JSONL dari F-01 ke Neo4j AuraDB Free (constraint unik, full-text index, batch `UNWIND ... MERGE`), lengkap dengan provenance, dan menyediakan mode rebuild penuh yang idempoten (`bun run rebuild`).
@@ -57,10 +57,10 @@
 ## 6. Breakdown Task Implementasi
 | ID | Task | Layer | Estimasi (jam) | Bergantung pada | Output terverifikasi |
 | --- | --- | --- | --- | --- | --- |
-| T02-01 | Tulis `cypher/schema.cypher`: constraint unik `Entitas.id` + satu constraint per label (daftar label dari `nodes.jsonl` F-01) + full-text index `teks_bebas` (`Interaksi\|Tiket` pada `subjek`, `isi`, `judul`, `deskripsi`), semuanya `IF NOT EXISTS`. | DB | 0,5 | 01 (daftar label dari output F-01) | Setelah dijalankan di Aura, `SHOW CONSTRAINTS` menampilkan constraint per label dan `SHOW INDEXES` menampilkan `teks_bebas` berstatus ONLINE. |
-| T02-02 | Tulis `scripts/load.ts`: buat driver sendiri dengan `disableLosslessIntegers`, jalankan skema, batch 500 `UNWIND ... MERGE (n:Entitas:${label} {id: r.id}) SET n += r.props`, lalu relasi per tipe `MERGE (a)-[e:${type} {key: r.key}]->(b)`; label/tipe dari allowlist; tanggal lewat `date()`. Pasang `neo4j-driver` bila belum ada. | BE | 1,0 | T02-01, 01 (JSONL) | `bun run load` selesai tanpa error; jumlah node per label tercetak dan cocok dengan JSONL. |
-| T02-03 | Mode rebuild: hapus semua node (`MATCH (n) DETACH DELETE n`) sebelum muat ulang dengan pengaman (cetak host `NEO4J_URI` + jumlah node yang akan dihapus; berhenti bila env kosong); tambahkan script `load` dan `rebuild` (`bun run etl && bun run load` + `derive`/`signals` bila skripnya sudah ada) di `package.json`. | BE | 0,5 | T02-02 | `bun run rebuild` menjalankan etl → load dari awal; pesan host yang dihapus terlihat sebelum penghapusan. |
-| T02-04 | Tes `tests/golden/load.test.ts`: jumlah node per label = baris sumber, semua node/relasi punya `source_file` + `source_id`, constraint + index ada; jalankan rebuild dua kali dan bandingkan jumlah node dan relasi. | Test | 0,5 | T02-03 | `bun test tests/golden/load.test.ts` hijau; dua kali rebuild menghasilkan jumlah node dan relasi identik. Jalur error: JSONL berisi ID ganda → hitungan per label berbeda → tes gagal dengan pesan jelas. |
+$1 **Status: selesai** -- `cypher/schema.cypher`: `entitas_id` + 17 constraint per label + full-text `teks_bebas` (ONLINE di Aura). |
+$1 **Status: selesai** -- `scripts/load.ts` (+ `scripts/lib/neo4j.ts`); batch 500; `bun run load` ke Aura ±18 detik; hitungan database = JSONL. |
+$1 **Status: selesai** -- `bun scripts/load.ts --rebuild`; mencetak host dan jumlah node sebelum menghapus; env kosong/spasi → berhenti tanpa menyentuh apa pun; `rebuild` = etl → load --rebuild → derive → signals (±21 detik). |
+$1 **Status: selesai** -- `tests/golden/load.test.ts`; tes baca-saja jalan bila `NEO4J_URI` terisi, tes rebuild-dua-kali hanya dengan `AURA_MUTATE=1` (lulus). |
 | | **Total 2,5 jam (estimasi PRD: 1,5 jam)** -- selisih +67%, lihat ⚠️ ASUMSI di section 9. | | | | |
 
 ## 7. Dependensi
@@ -89,6 +89,12 @@
 - Risiko: `MERGE` menggabungkan ID ganda secara diam-diam (Rencana menyebut "tabrakan ID langsung gagal saat load", padahal `MERGE` tidak gagal) -- mitigasi/fallback: cek ID ganda di ETL (01, T01-06) + tes hitungan per label (T02-04).
 - Risiko: rebuild bersifat destruktif (`DETACH DELETE` seluruh graph) -- mitigasi/fallback: pengaman T02-03; hanya menunjuk instance milik tim; data bisa dibangun ulang dari `data/build/`.
 - Risiko: Aura Free ter-pause atau batas node/relasi (A9: 200 ribu / 400 ribu, belum dicek di halaman resmi) -- mitigasi/fallback: buka konsol Aura sebelum load; graph ±9.400 node jauh di bawah batas.
+
+- ✅ KEPUTUSAN (2026-10-09, Adrian): graph-nya hanya Neo4j AuraDB (K-A). Loader mengikuti bentuk keluaran ETL Rencana Teknis (`key`, `sumber`, `from`/`to`), bukan draf kontrak Dio.
+- 🔁 USULAN PERUBAHAN: (a) `scripts/lib/neo4j.ts` -- helper driver tulis + pemecah pernyataan Cypher, dipakai load/run-cypher/signals/tes; (b) tes yang MENULIS ke Aura (rebuild, derive, signals berulang) dijalankan hanya dengan `AURA_MUTATE=1`, dan tes baca-saja otomatis jalan bila `NEO4J_URI` terisi -- supaya `bun test` biasa tidak menghapus graph bersama yang sedang dibaca rekan; (c) Rencana menulis constraint `akun_id` dst. "satu per label": ditambah `anomali_id` dan `sinyal_id` untuk label yang lahir di F-03/F-04; (d) `scripts/demo-radar.ts` -- alat bantu validasi manual baca-saja (bukan endpoint).
+- ⚠️ ASUMSI: properti Neo4j tidak boleh map, jadi objek di props ETL disimpan sebagai string JSON di `<nama>_json` (satu-satunya: `Outlet.versi_sejak_json`); bilangan bulat ditulis sebagai Integer; kunci tanggal (`tanggal`, `dibuat`, `mulai`, `selesai`, `sejak`, `stage_sejak`, `tanggal_rilis`, `tanggal_renewal`, `diselesaikan`) ditulis sebagai `date`. Terverifikasi: `duration.inDays(Rilis.tanggal_rilis, date('2026-10-01'))` = 94.
+- ⚠️ ASUMSI terjawab: `neo4j-driver` 6.2.0 berjalan di Bun (load, derive, signals, dan tes semuanya lewat Bun).
+- Hasil terukur: 9.397 node (15 label ETL + Anomali) dan 11.984 relasi termuat; `rebuild` dua kali → hitungan identik.
 
 ## 10. Definition of Done
 - [ ] Semua acceptance criteria di section 3 lolos uji di section 8
