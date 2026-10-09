@@ -1,5 +1,5 @@
 # 17 -- Grafik usage terkoreksi vs rilis 4.12
-> ID PRD: F-18 · Prioritas: Should #4 · Penanggung jawab: Tegar (Frontend) · Estimasi: 1,5 jam-orang (PRD) · Status: Belum dimulai
+> ID PRD: F-18 · Prioritas: Should #4 · Penanggung jawab: Tegar (Frontend) · Estimasi: 1,5 jam-orang (PRD) · Status: Belum dimulai (2026-10-10): menunggu kesepakatan pemilik query T17-01 (`src/server/queries/usage.ts`, layer BE) dengan Dio/Adrian
 
 ## 1. Ringkasan Fitur
 - Apa: grafik bulanan di `/akun/[id]` untuk akun yang punya anomali usage: rata-rata per outlet kelompok terdampak vs 19 outlet kontrol (offline, tidak pernah memakai 4.12), dengan garis vertikal rilis 4.12 (2026-06-29), dibangun dari `UsageBulan`.

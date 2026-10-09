@@ -1,5 +1,5 @@
 # 11 -- Penampil subgraph bukti v1
-> ID PRD: F-12 · Prioritas: Must · Penanggung jawab: Tegar (Frontend) · Estimasi: 2,5 jam-orang (PRD) · Status: Belum dimulai
+> ID PRD: F-12 · Prioritas: Must · Penanggung jawab: Tegar (Frontend) · Estimasi: 2,5 jam-orang (PRD) · Status: Implementasi selesai (2026-10-10, branch `tegar/landing-page`); golden 40 akun ≤80 node dan C01 ≥4 `source_file` hijau terhadap Aura; layout ELK di browser dan cek URL produksi belum diverifikasi visual (Tegar menjalankan server sendiri)
 
 ## 1. Ringkasan Fitur
 - Apa: viewer graph di `/akun/[id]` yang merender `GraphPayload` jalur bukti (≤80 node) dengan layout berlapis kiri→kanan (ELK), warna node per sumber data, relasi turunan bergaris putus-putus, panel samping saat node diklik, dan pemilih sinyal.

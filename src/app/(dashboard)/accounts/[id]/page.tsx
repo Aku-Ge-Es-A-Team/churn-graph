@@ -5,17 +5,21 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ExplanationPanel } from "@/components/account/explanation-panel";
 import { RetentionCardView } from "@/components/account/retention-card";
-import { EvidenceExplorer } from "@/components/evidence/evidence-explorer";
+import { SignalTimeline } from "@/components/account/signal-timeline";
+import { EvidenceGraph } from "@/components/evidence/evidence-graph";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LEVEL_STYLES, formatFullIdr, renewalLabel, signalLabel } from "@/lib/ranking";
+import { addDays } from "@/lib/timeline";
 import { getAccountDetail } from "@/server/queries";
+import { referenceDate } from "@/server/queries/risk";
 
 async function AccountDetailView({ id }: { id: string }) {
   await connection();
   const detail = await getAccountDetail(id);
   if (!detail) notFound();
   const { row, signals, evidence, explanation, retention } = detail;
+  const renewalDate = row.renewalDays === null ? null : addDays(referenceDate(), row.renewalDays);
 
   return (
     <>
@@ -64,7 +68,8 @@ async function AccountDetailView({ id }: { id: string }) {
 
       <ExplanationPanel explanation={explanation} />
       <RetentionCardView card={retention} />
-      <EvidenceExplorer payload={evidence} signals={signals} />
+      <EvidenceGraph account={row.account} payload={evidence} signals={signals} />
+      <SignalTimeline signals={signals} renewalDate={renewalDate} />
     </>
   );
 }
