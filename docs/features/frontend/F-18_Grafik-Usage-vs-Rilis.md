@@ -1,5 +1,5 @@
 # 17 -- Grafik usage terkoreksi vs rilis 4.12
-> ID PRD: F-18 · Prioritas: Should #4 · Penanggung jawab: Tegar (Frontend) · Estimasi: 1,5 jam-orang (PRD) · Status: Belum dimulai (2026-10-10): menunggu kesepakatan pemilik query T17-01 (`src/server/queries/usage.ts`, layer BE) dengan Dio/Adrian
+> ID PRD: F-18 · Prioritas: Should #4 · Penanggung jawab: Tegar (Frontend) · Estimasi: 1,5 jam-orang (PRD) · Status: Implementasi selesai (2026-10-10, branch `tegar/landing-page`); golden Aura hijau: C03 n terdampak 6 vs kontrol 19, rilis 4.12 2026-06-29, 12 bulan; C05 n=5; C02/C06 tanpa grafik. Catatan: properti nyata `UsageBulan` adalah rata-rata harian (`rata_harian_transaksi`, `rata_harian_offline`), dipakai menggantikan nama `jumlah_transaksi`/`transaksi_offline_tersinkron` di section 3; query T17-01 = `src/server/queries/usage.ts` (+ `getUsageComparison` di facade)
 
 ## 1. Ringkasan Fitur
 - Apa: grafik bulanan di `/akun/[id]` untuk akun yang punya anomali usage: rata-rata per outlet kelompok terdampak vs 19 outlet kontrol (offline, tidak pernah memakai 4.12), dengan garis vertikal rilis 4.12 (2026-06-29), dibangun dari `UsageBulan`.

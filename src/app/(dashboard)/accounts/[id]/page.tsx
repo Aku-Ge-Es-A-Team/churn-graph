@@ -6,6 +6,7 @@ import { connection } from "next/server";
 import { ExplanationPanel } from "@/components/account/explanation-panel";
 import { RetentionCardView } from "@/components/account/retention-card";
 import { SignalTimeline } from "@/components/account/signal-timeline";
+import { UsageSection, UsageSectionFallback } from "@/components/account/usage-section";
 import { EvidenceGraph } from "@/components/evidence/evidence-graph";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,6 +71,9 @@ async function AccountDetailView({ id }: { id: string }) {
       <RetentionCardView card={retention} />
       <EvidenceGraph account={row.account} payload={evidence} signals={signals} />
       <SignalTimeline signals={signals} renewalDate={renewalDate} />
+      <Suspense fallback={<UsageSectionFallback />}>
+        <UsageSection account={row.account} />
+      </Suspense>
     </>
   );
 }
