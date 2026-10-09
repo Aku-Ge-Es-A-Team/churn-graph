@@ -1,25 +1,24 @@
-import Link from "next/link";
-import { Logo } from "@/components/brand/logo";
-import { routes, siteConfig } from "@/lib/site-config";
+import type { CSSProperties } from "react";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
-// Header sementara area aplikasi (skeleton T00-11). Diganti template dashboard shadcn saat F-11 dikerjakan.
+// App area (/dashboard, /accounts/[id]) uses the shadcn dashboard-01 template: inset sidebar + site header.
 export default function DashboardLayout({ children }: LayoutProps<"/">) {
   return (
-    <>
-      <header className="border-b bg-background text-foreground">
-        <nav aria-label="App" className="mx-auto flex w-full max-w-5xl items-center gap-6 px-6 py-3">
-          <Link href={routes.dashboard} aria-label={`${siteConfig.name} risk radar`} className="focus-ring rounded-sm">
-            <Logo />
-          </Link>
-          <Link href={routes.dashboard} className="focus-ring rounded-sm text-sm text-muted-foreground hover:text-foreground">
-            Risk radar
-          </Link>
-          <Link href={routes.home} className="focus-ring ml-auto rounded-sm text-sm text-muted-foreground hover:text-foreground">
-            About
-          </Link>
-        </nav>
-      </header>
-      {children}
-    </>
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 64)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as CSSProperties
+      }
+    >
+      <AppSidebar variant="inset" />
+      <SidebarInset>
+        <SiteHeader />
+        <div className="@container/main flex flex-1 flex-col">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

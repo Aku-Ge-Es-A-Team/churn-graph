@@ -3,6 +3,7 @@ import { Geist_Mono, Montserrat, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { siteConfig } from "@/lib/site-config";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Tipografi brand Churn Graph: judul = Playfair Display (`font-heading`), paragraf & UI = Montserrat (`font-sans`),
 // kode = Geist Mono.
@@ -21,7 +22,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={cn("h-full antialiased font-sans", montserrat.variable, playfair.variable, geistMono.variable)}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <TooltipProvider>{children}</TooltipProvider>
+      </body>
     </html>
   );
 }

@@ -76,7 +76,7 @@ async function AccountDetailView({ id }: { id: string }) {
 
 export default function AccountPage({ params }: PageProps<"/accounts/[id]">) {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
+    <main className="flex w-full flex-col gap-4 px-4 py-4 md:py-6 lg:px-6">
       <Link href={routes.dashboard} className="text-sm text-muted-foreground hover:text-foreground">
         ← Back to the ranking
       </Link>

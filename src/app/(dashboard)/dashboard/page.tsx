@@ -1,31 +1,40 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
+import { SectionCards } from "@/components/section-cards";
 import { RankingBoard } from "@/components/ranking/ranking-board";
-import { RiskSummary } from "@/components/ranking/risk-summary";
 import { getRanking } from "@/server/queries";
 
+// /dashboard: F-24 summary cards + F-11 ranking board, inside the shadcn dashboard-01 layout.
 async function RankingContent() {
   await connection();
   const rows = await getRanking();
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-6 py-10">
-      <header className="max-w-3xl">
-        <p className="text-sm font-medium text-primary">Data Graph · F-05 / F-11</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Churn early warning</h1>
-        <p className="mt-3 text-muted-foreground">
-          Ranked customer risk findings from the context graph, with renewal timing, estimated exposure, and evidence-backed signals.
-        </p>
-      </header>
-      <RiskSummary rows={rows} />
-      <RankingBoard rows={rows} />
-    </main>
+    <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+      <SectionCards rows={rows} />
+      <div className="px-4 lg:px-6">
+        <RankingBoard rows={rows} />
+      </div>
+    </div>
   );
 }
 
 function RankingFallback() {
-  return <main className="mx-auto w-full max-w-6xl px-6 py-10"><div className="h-64 animate-pulse rounded-lg border bg-muted/30" /></main>;
+  return (
+    <div className="flex flex-col gap-4 px-4 py-4 md:py-6 lg:px-6" role="status" aria-label="Loading the ranking">
+      <div className="grid gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="h-36 animate-pulse rounded-xl border bg-muted/30" />
+        ))}
+      </div>
+      <div className="h-96 animate-pulse rounded-xl border bg-muted/30" />
+    </div>
+  );
 }
 
-export default function HomePage() {
-  return <Suspense fallback={<RankingFallback />}><RankingContent /></Suspense>;
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<RankingFallback />}>
+      <RankingContent />
+    </Suspense>
+  );
 }

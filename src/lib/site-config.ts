@@ -16,6 +16,15 @@ export const sectionIds = {
   features: "features",
 } as const;
 
+/** Menu sidebar dashboard (template shadcn dashboard-01). Ikon dipetakan di AppSidebar. */
+export const dashboardNav = {
+  main: [{ href: routes.dashboard, label: "Risk radar", icon: "radar" }],
+  secondary: [
+    { href: routes.home, label: "Landing page", icon: "home" },
+    { href: "/health", label: "System health", icon: "health" },
+  ],
+} as const;
+
 /** Satu sumber untuk nama produk, navigasi, dan CTA utama di semua halaman. */
 export const siteConfig = {
   name: "Churn Graph",
