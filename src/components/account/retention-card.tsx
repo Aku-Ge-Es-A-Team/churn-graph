@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Cell, Label, Pie, PieChart } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ActionApprovalControls } from "@/components/account/action-approval";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { formatCompactIdr, formatFullIdr } from "@/lib/ranking";
 import { checkDiscountProposal } from "@/server/queries/precedents";
@@ -147,6 +148,8 @@ function ActionCard({ action, card, primary }: { action: RetentionAction; card: 
         ) : null}
 
         {action.discount ? <DiscountTester policy={action.discount} /> : null}
+
+        <ActionApprovalControls account={card.account} actionType={action.type} />
 
         {action.precedents.length > 0 ? (
           <ul className="flex flex-col gap-1">

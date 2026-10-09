@@ -10,6 +10,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 export function pageTitle(pathname: string): string {
   if (pathname.startsWith("/accounts/")) return `Account ${decodeURIComponent(pathname.split("/")[2] ?? "")}`.trim()
   if (pathname === "/dashboard") return "Risk radar"
+  if (pathname === "/ask") return "Ask the graph"
   return "Churn Graph"
 }
 

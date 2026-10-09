@@ -5,14 +5,17 @@ import { connection } from "next/server";
 import { ExplanationPanel } from "@/components/account/explanation-panel";
 import { RetentionCardView } from "@/components/account/retention-card";
 import { SignalTimeline } from "@/components/account/signal-timeline";
+import { ExportMarkdownButton } from "@/components/account/export-markdown-button";
 import { SignalsCard } from "@/components/account/signals-card";
 import { UsageSection, UsageSectionFallback } from "@/components/account/usage-section";
+import { WhatIfPanel } from "@/components/account/what-if-panel";
 import { EvidenceGraph } from "@/components/evidence/evidence-graph";
 import { LinkButton } from "@/components/link-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LEVEL_STYLES, formatCompactIdr, formatFullIdr, renewalLabel } from "@/lib/ranking";
 import { routes } from "@/lib/site-config";
+import { accountMarkdown, markdownFileName } from "@/lib/account-markdown";
 import { addDays } from "@/lib/timeline";
 import { getAccountDetail } from "@/server/queries";
 import { referenceDate } from "@/server/queries/risk";
@@ -38,11 +41,14 @@ async function AccountDetailView({ id }: { id: string }) {
   const detail = await getAccountDetail(id);
   if (!detail) notFound();
   const { row, signals, evidence, explanation, retention } = detail;
-  const renewalDate = row.renewalDays === null ? null : addDays(referenceDate(), row.renewalDays);
+  const snapshot = referenceDate();
+  const renewalDate = row.renewalDays === null ? null : addDays(snapshot, row.renewalDays);
+  const snapshotDate = snapshot.toISOString().slice(0, 10);
+  const markdown = accountMarkdown({ row, signals, explanation, retention, renewalDate, snapshotDate });
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
-      <header className="flex flex-col gap-3 lg:col-span-3">
+      <header className="flex flex-col gap-3 lg:col-span-3 md:flex-row md:items-start md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
             {row.account} · {row.name}
@@ -56,6 +62,7 @@ async function AccountDetailView({ id }: { id: string }) {
             <Badge className="bg-muted text-foreground">Dashboard: {row.dashboard}</Badge>
           )}
         </div>
+        <ExportMarkdownButton markdown={markdown} fileName={markdownFileName(row.account, snapshotDate)} />
       </header>
 
       <div className="grid grid-cols-2 gap-4 lg:col-span-3 lg:grid-cols-4">
@@ -83,7 +90,10 @@ async function AccountDetailView({ id }: { id: string }) {
       <div className="lg:col-span-1">
         <SignalTimeline signals={signals} renewalDate={renewalDate} />
       </div>
-      <div className="min-w-0 lg:col-span-2">
+      <div className="lg:col-span-2">
+        <WhatIfPanel signals={signals} renewalDays={row.renewalDays} annualValue={row.annualValue} dashboard={row.dashboard} />
+      </div>
+      <div className="min-w-0 lg:col-span-3">
         <Suspense fallback={<UsageSectionFallback />}>
           <UsageSection account={row.account} />
         </Suspense>
