@@ -49,7 +49,7 @@ export function Logo({ className, tone = "ink" }: LogoProps) {
   return (
     <span className={cn("inline-flex items-center gap-2", TONE[tone], className)}>
       <LogoMark tone={tone} className="size-7" />
-      <span className="text-[1.05rem] font-semibold tracking-[-0.02em]">{siteConfig.name}</span>
+      <span className="font-heading text-[1.2rem] font-medium tracking-[-0.01em]">{siteConfig.name}</span>
     </span>
   );
 }

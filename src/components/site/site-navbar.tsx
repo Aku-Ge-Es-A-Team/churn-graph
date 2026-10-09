@@ -36,7 +36,7 @@ export function SiteNavbar({
         <ul className="hidden items-center gap-12 md:flex">
           {links.map((link) => (
             <li key={link.href}>
-              <NavAnchor link={link} className="font-serif text-[0.98rem] text-ink/75 transition-colors hover:text-ink" />
+              <NavAnchor link={link} className="text-[0.95rem] text-ink/70 transition-colors hover:text-ink" />
             </li>
           ))}
         </ul>
@@ -56,7 +56,7 @@ export function SiteNavbar({
               <ul className="absolute right-0 top-12 flex w-52 flex-col rounded-2xl border border-hairline bg-paper p-2 shadow-[0_16px_40px_-16px_rgb(0_0_0/0.3)]">
                 {links.map((link) => (
                   <li key={link.href}>
-                    <NavAnchor link={link} className="block rounded-xl px-3 py-2 font-serif text-ink hover:bg-ink/5" />
+                    <NavAnchor link={link} className="block rounded-xl px-3 py-2 text-ink hover:bg-ink/5" />
                   </li>
                 ))}
               </ul>
@@ -87,7 +87,7 @@ export function NavCta({ link, className }: { link: NavLink; className?: string 
   return (
     <Link
       href={link.href}
-      className={cn("focus-ring group relative inline-flex h-9 items-center px-5 font-serif text-[0.98rem] italic text-paper", className)}
+      className={cn("focus-ring group relative inline-flex h-9 items-center px-5 text-[0.92rem] font-medium text-paper", className)}
     >
       <span aria-hidden className="absolute inset-0 -skew-x-[16deg] rounded-[5px] bg-ink transition-colors group-hover:bg-signal" />
       <span className="relative">{link.label}</span>

@@ -19,7 +19,7 @@ export function ScrollBadge({ href, label = "Scroll to explore", className }: Sc
         <defs>
           <path id="scroll-badge-circle" d="M50 50 m-37 0 a37 37 0 1 1 74 0 a37 37 0 1 1 -74 0" />
         </defs>
-        <text fontSize="10.5" letterSpacing="2.2" fill="currentColor" className="font-serif italic">
+        <text fontSize="9.6" letterSpacing="1.35" fill="currentColor" className="font-sans font-medium">
           <textPath href="#scroll-badge-circle">{`${label} • ${label} •`}</textPath>
         </text>
       </svg>

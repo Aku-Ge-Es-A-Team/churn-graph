@@ -10,7 +10,7 @@ export function LandingHero() {
       <h1
         id="hero-title"
         // Ukuran dihitung dari lebar kontainer agar wordmark selalu mengisi satu baris penuh.
-        className="-ml-[0.05em] whitespace-nowrap text-[calc((100vw-2.5rem)/5.15)] leading-[0.86] font-light tracking-[-0.05em] text-ink md:text-[calc((100vw-5rem)/5.15)] min-[1440px]:text-[calc((1440px-5rem)/5.15)]"
+        className="-ml-[0.04em] whitespace-nowrap font-heading text-[calc((100vw-2.5rem)/5.15)] leading-[0.9] font-light tracking-[-0.035em] text-ink md:text-[calc((100vw-5rem)/5.15)] min-[1440px]:text-[calc((1440px-5rem)/5.15)]"
       >
         {siteConfig.name}
       </h1>
@@ -18,7 +18,7 @@ export function LandingHero() {
       <div className="mt-8 grid gap-6 md:mt-10 md:grid-cols-12">
         <div className="flex gap-5 md:col-span-7 md:col-start-6 lg:col-span-6 lg:col-start-7">
           <LogoMark tone="muted" className="mt-1 hidden size-11 sm:block" />
-          <p className="max-w-[54ch] font-serif text-[1.08rem] leading-[1.62] text-ink/85">
+          <p className="max-w-[56ch] text-[1.05rem] leading-[1.6] text-ink/75">
             Your health score says an account is fine. Its contacts, contracts and emails may say otherwise. Churn Graph
             links six sources into one graph and shows exactly where they disagree, months before the renewal.
           </p>

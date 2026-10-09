@@ -45,7 +45,7 @@ export function HeroGraph({ className }: { className?: string }) {
           CRM dashboard
         </text>
         <circle cx="96" cy="299" r="6" className="fill-healthy" />
-        <text x="112" y="306" fill="white" fontSize="24" fontWeight="500" letterSpacing="-0.5">
+        <text x="112" y="307" fill="white" fontSize="26" className="font-heading">
           Healthy
         </text>
       </g>
@@ -68,7 +68,7 @@ export function HeroGraph({ className }: { className?: string }) {
               {e.source}
             </text>
             <rect x={CARD.x} y={e.y - CARD.h / 2} width={CARD.w} height={CARD.h} rx="18" fill="white" />
-            <text x={CARD.x + 22} y={e.y - 6} fill="black" fontSize="18" fontWeight="600" letterSpacing="-0.3">
+            <text x={CARD.x + 22} y={e.y - 5} fill="black" fontSize="20" fontWeight="500" className="font-heading">
               {e.title}
             </text>
             <text x={CARD.x + 22} y={e.y + 20} fill="black" fillOpacity="0.55" fontSize="14">
@@ -85,7 +85,7 @@ export function HeroGraph({ className }: { className?: string }) {
       <text x={ACCOUNT.cx} y={ACCOUNT.cy + 28} fill="white" fontSize="13" textAnchor="middle" fillOpacity="0.7">
         C01
       </text>
-      <text x={ACCOUNT.cx} y={ACCOUNT.cy + ACCOUNT.r + 46} fill="white" fontSize="20" fontWeight="500" textAnchor="middle" letterSpacing="-0.3">
+      <text x={ACCOUNT.cx} y={ACCOUNT.cy + ACCOUNT.r + 46} fill="white" fontSize="23" textAnchor="middle" className="font-heading">
         Kopi Lintas Nusantara
       </text>
       <text x={ACCOUNT.cx} y={ACCOUNT.cy + ACCOUNT.r + 72} className="fill-signal" fontSize="15" textAnchor="middle">
