@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { ActivityIcon, HouseIcon, RadarIcon } from "lucide-react"
+import { HouseIcon, MessageSquareTextIcon, RadarIcon } from "lucide-react"
 
 import { Logo } from "@/components/brand/logo"
 import { NavMain } from "@/components/nav-main"
@@ -21,7 +21,7 @@ import { dashboardNav, routes, siteConfig } from "@/lib/site-config"
 const ICONS = {
   radar: <RadarIcon />,
   home: <HouseIcon />,
-  health: <ActivityIcon />,
+  ask: <MessageSquareTextIcon />,
 } as const
 
 /** Sidebar from the shadcn dashboard-01 template, filled with the Churn Graph menu (`dashboardNav` in site-config). */
@@ -48,7 +48,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         />
       </SidebarContent>
       <SidebarFooter>
-        <p className="px-2 pb-1 text-xs text-muted-foreground">Snapshot Oct 1, 2026. Fictional KasirNusa data.</p>
+        <p className="px-3 pb-2 text-xs text-muted-foreground">Snapshot Oct 1, 2026. Fictional KasirNusa data.</p>
       </SidebarFooter>
     </Sidebar>
   )

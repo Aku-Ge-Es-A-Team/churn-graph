@@ -7,6 +7,7 @@ export type NavLink = {
 export const routes = {
   home: "/",
   dashboard: "/dashboard",
+  ask: "/ask",
   account: (id: string) => `/accounts/${encodeURIComponent(id)}`,
 } as const;
 
@@ -18,10 +19,12 @@ export const sectionIds = {
 
 /** Menu sidebar dashboard (template shadcn dashboard-01). Ikon dipetakan di AppSidebar. */
 export const dashboardNav = {
-  main: [{ href: routes.dashboard, label: "Risk radar", icon: "radar" }],
+  main: [
+    { href: routes.dashboard, label: "Risk radar", icon: "radar" },
+    { href: routes.ask, label: "Ask the graph", icon: "ask" },
+  ],
   secondary: [
     { href: routes.home, label: "Landing page", icon: "home" },
-    { href: "/health", label: "System health", icon: "health" },
   ],
 } as const;
 

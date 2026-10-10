@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Cell, Label, Pie, PieChart } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ActionApprovalControls } from "@/components/account/action-approval";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { formatCompactIdr, formatFullIdr } from "@/lib/ranking";
 import { checkDiscountProposal } from "@/server/queries/precedents";
@@ -54,10 +55,10 @@ function Donut({ slices, centre, caption, unit }: { slices: Slice[]; centre: str
   const config = Object.fromEntries(slices.map((s) => [s.key, { label: s.label, color: s.color }])) satisfies ChartConfig;
   return (
     <figure className="flex flex-col items-center gap-2">
-      <ChartContainer config={config} className="aspect-square h-[150px]">
+      <ChartContainer config={config} className="aspect-square h-[150px] w-[150px]">
         <PieChart>
           <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="key" />} />
-          <Pie data={slices} dataKey="value" nameKey="key" innerRadius={46} outerRadius={66} strokeWidth={3} stroke="var(--background)">
+          <Pie data={slices} dataKey="value" nameKey="key" innerRadius={46} outerRadius={66} strokeWidth={3} stroke="var(--card)" isAnimationActive={false}>
             {slices.map((s) => (
               <Cell key={s.key} fill={s.color} />
             ))}
@@ -148,6 +149,8 @@ function ActionCard({ action, card, primary }: { action: RetentionAction; card: 
 
         {action.discount ? <DiscountTester policy={action.discount} /> : null}
 
+        <ActionApprovalControls account={card.account} actionType={action.type} />
+
         {action.precedents.length > 0 ? (
           <ul className="flex flex-col gap-1">
             {action.precedents.map((p) => (
@@ -192,7 +195,7 @@ export function RetentionCardView({ card }: { card: RetentionCard }) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid items-stretch gap-4 md:grid-cols-2">
+        <div className={`grid items-stretch gap-4 md:grid-cols-2 ${card.actions.length >= 3 ? "xl:grid-cols-3" : ""}`}>
           {card.actions.map((a, i) => (
             <ActionCard key={a.type} action={a} card={card} primary={i === 0} />
           ))}

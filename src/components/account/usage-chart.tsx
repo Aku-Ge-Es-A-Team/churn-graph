@@ -30,8 +30,8 @@ function MetricChart({ data, metric, title, releaseMonth, releaseLabel, config }
           <ChartTooltip content={<ChartTooltipContent labelFormatter={(v) => monthLabel(String(v))} />} />
           <ReferenceLine x={releaseMonth} stroke="var(--destructive)" strokeDasharray="4 4" label={{ value: releaseLabel, position: "insideTopRight", fontSize: 11, fill: "var(--destructive)" }} />
           {/* connectNulls is off: a null month is a gap, not a drop to 0. Lines differ by dash as well as colour. */}
-          <Line dataKey="affected" type="monotone" stroke="var(--color-affected)" strokeWidth={2.5} dot={false} connectNulls={false} />
-          <Line dataKey="control" type="monotone" stroke="var(--color-control)" strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls={false} />
+          <Line dataKey="affected" type="monotone" stroke="var(--color-affected)" strokeWidth={2.5} dot={false} connectNulls={false} isAnimationActive={false} />
+          <Line dataKey="control" type="monotone" stroke="var(--color-control)" strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls={false} isAnimationActive={false} />
           <ChartLegend content={<ChartLegendContent />} />
         </LineChart>
       </ChartContainer>
