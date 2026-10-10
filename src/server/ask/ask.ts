@@ -2,7 +2,7 @@
 // (F-10) → response assembled only from validated claims. Pure with respect to HTTP: the route handler and F-15 (preset
 // cache) both call askQuestion. The model and the Cypher runner are injected, so tests never call a real LLM or Aura.
 //
-// Two phases, because the 9router endpoint ignores `response_format` (no structured output) and rejects an object
+// Two phases, because the OpenAI-compatible 9router fallback ignores `response_format` (no structured output) and rejects an object
 // `tool_choice`, while plain tool calling works:
 //   1. research: the six data tools; the loop stops on its own once a soft time budget is spent, so evidence gathered
 //      so far is kept instead of being lost to an abort;
@@ -13,6 +13,7 @@
 // out-of-scope question is refused without the tool loop; any other intent appends a tool hint to the research prompt.
 // Any JEV failure yields null and the pipeline behaves exactly as before.
 import { generateText, isStepCount, tool, type LanguageModel, type ModelMessage } from "ai";
+import { LLM_PROVIDER_OPTIONS } from "../ai/options";
 import { z } from "zod";
 import { ClaimSchema, type AskResponse } from "../../types/graph";
 import type { CypherRunner } from "../queries/runner";
@@ -71,6 +72,7 @@ async function submitAnswer(model: LanguageModel, messages: ModelMessage[]): Pro
     toolChoice: "required",
     timeout: { totalMs: SUBMIT_TIMEOUT_MS },
     maxRetries: 0,
+    providerOptions: LLM_PROVIDER_OPTIONS,
   }).catch((e: unknown) => logFailure("submit", e));
   // Read the raw input even when it failed the schema: the citation validator decides what survives.
   return result?.steps.flatMap((s) => s.content).find((p) => p.type === "tool-call")?.input ?? null;
@@ -113,6 +115,7 @@ export async function askQuestion(question: string, deps: AskDeps): Promise<AskR
     stopWhen: [isStepCount(MAX_STEPS), () => Date.now() - started > RESEARCH_SOFT_BUDGET_MS],
     timeout: { totalMs: RESEARCH_TIMEOUT_MS },
     maxRetries: 0,
+    providerOptions: LLM_PROVIDER_OPTIONS,
   }).catch((e: unknown) => logFailure("research", e));
   if (!research) return failed([]);
 
