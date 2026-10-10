@@ -6,7 +6,7 @@ import { ExplanationPanel } from "@/components/account/explanation-panel";
 import { RetentionCardView } from "@/components/account/retention-card";
 import { SignalTimeline } from "@/components/account/signal-timeline";
 import { ExportMarkdownButton } from "@/components/account/export-markdown-button";
-import { SignalsCard } from "@/components/account/signals-card";
+import { SignalDetails, SignalsCard } from "@/components/account/signals-card";
 import { UsageSection, UsageSectionFallback } from "@/components/account/usage-section";
 import { WhatIfPanel } from "@/components/account/what-if-panel";
 import { EvidenceGraph } from "@/components/evidence/evidence-graph";
@@ -34,7 +34,7 @@ function Stat({ label, value, hint, title }: { label: string; value: string; hin
   );
 }
 
-// Bento layout: header, four stat tiles, signals + rule checks, retention actions side by side, evidence graph,
+// Bento layout: header, four stat tiles, signal chart + rule checks, signal details (full width), retention actions side by side, evidence graph,
 // timeline + usage chart. One column on phones, two on tablets, three or four on desktop.
 async function AccountDetailView({ id }: { id: string }) {
   await connection();
@@ -77,6 +77,10 @@ async function AccountDetailView({ id }: { id: string }) {
       </div>
       <div className="lg:col-span-1">
         <ExplanationPanel explanation={explanation} />
+      </div>
+
+      <div className="lg:col-span-3">
+        <SignalDetails signals={signals} />
       </div>
 
       <div className="lg:col-span-3">
