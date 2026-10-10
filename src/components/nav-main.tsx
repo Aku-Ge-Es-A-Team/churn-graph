@@ -4,6 +4,8 @@ import { Suspense } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
+import { NAV_ITEM_CLASS } from "@/components/nav-styles"
+
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -26,10 +28,10 @@ export function isActiveNav(url: string, pathname: string | null): boolean {
 
 function NavList({ items, pathname }: { items: NavItem[]; pathname: string | null }) {
   return (
-    <SidebarMenu>
+    <SidebarMenu className="gap-2">
       {items.map((item) => (
         <SidebarMenuItem key={item.title}>
-          <SidebarMenuButton tooltip={item.title} isActive={isActiveNav(item.url, pathname)} render={<Link href={item.url} />}>
+          <SidebarMenuButton tooltip={item.title} isActive={isActiveNav(item.url, pathname)} className={NAV_ITEM_CLASS} render={<Link href={item.url} />}>
             {item.icon}
             <span>{item.title}</span>
           </SidebarMenuButton>
@@ -47,7 +49,7 @@ function ActiveNavList({ items }: { items: NavItem[] }) {
 export function NavMain({ items }: { items: NavItem[] }) {
   return (
     <SidebarGroup>
-      <SidebarGroupContent className="flex flex-col gap-2">
+      <SidebarGroupContent className="flex flex-col gap-2 px-1 pt-2">
         <Suspense fallback={<NavList items={items} pathname={null} />}>
           <ActiveNavList items={items} />
         </Suspense>

@@ -25,7 +25,6 @@ export const dashboardNav = {
   ],
   secondary: [
     { href: routes.home, label: "Landing page", icon: "home" },
-    { href: "/health", label: "System health", icon: "health" },
   ],
 } as const;
 
