@@ -20,10 +20,10 @@ type NavItem = {
   icon?: React.ReactNode
 }
 
-/** Account detail pages belong to the risk radar. */
+/** Account detail pages belong to the accounts list. */
 export function isActiveNav(url: string, pathname: string | null): boolean {
   if (!pathname) return false
-  return pathname === url || (url === "/dashboard" && pathname.startsWith("/accounts/"))
+  return pathname === url || (url === "/accounts" && pathname.startsWith("/accounts/"))
 }
 
 function NavList({ items, pathname }: { items: NavItem[]; pathname: string | null }) {
