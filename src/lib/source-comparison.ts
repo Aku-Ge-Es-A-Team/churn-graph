@@ -43,7 +43,7 @@ const SOURCE_ORDER = [
 // Date-like property names as stored in the graph (dataset vocabulary).
 const DATE_KEYS = ["tanggal", "mulai", "selesai", "dibuat", "sejak", "diselesaikan", "tanggal_rilis", "tanggal_renewal"];
 
-function firstDate(props: Record<string, unknown>): string | null {
+export function firstDate(props: Record<string, unknown>): string | null {
   for (const key of DATE_KEYS) {
     const v = props[key];
     if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);

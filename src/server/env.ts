@@ -29,4 +29,14 @@ let neo4jCache: z.infer<typeof neo4jSchema> | undefined;
 let llmCache: z.infer<typeof llmSchema> | undefined;
 
 export const neo4jEnv = () => (neo4jCache ??= parse(neo4jSchema, "Neo4j"));
+
+/**
+ * JEV AI (TypeSafe) is an OPTIONAL decision/classification/scoring layer. Without TYPESAFE_API_KEY this returns null and every
+ * caller falls back to the rule-based behaviour. TYPESAFE_MODEL defaults to the flagship alias.
+ */
+export function jevEnv(): { apiKey: string; model: string } | null {
+  const apiKey = process.env.TYPESAFE_API_KEY?.trim();
+  if (!apiKey) return null;
+  return { apiKey, model: process.env.TYPESAFE_MODEL?.trim() || "jev-latest" };
+}
 export const llmEnv = () => (llmCache ??= parse(llmSchema, "LLM"));

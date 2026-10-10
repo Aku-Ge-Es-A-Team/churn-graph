@@ -149,6 +149,8 @@ export type DecisionPrecedent = {
   approver: { id: string; name: string; title: string } | null;
   evidenceInteractionId: string | null;
   reason: string | null;
+  /** JEV AI: how comparable this precedent is to the account's situation (0-1). Absent when JEV is unavailable. */
+  fit?: number;
 };
 
 export type DiscountPolicy = {
@@ -177,6 +179,21 @@ export type RetentionAction = {
   /** Estimated cost in IDR (null when the action has no monetary cost). */
   cost: { amount: number; basis: string } | null;
   discount?: DiscountPolicy;
+  /** JEV AI urgency of this action, 0 (can wait) to 3 (immediate). Absent when JEV is unavailable. */
+  urgency?: number;
+};
+
+/** What the JEV AI judgement layer did to a card. Absent = the card is exactly what the rules produced. */
+export type RetentionJudgement = {
+  source: "jev";
+  /** Confidence of the "first action" choice (null when there was a single candidate). */
+  confidence: number | null;
+  /** True when JEV moved a different action to the top. */
+  reordered: boolean;
+  /** Several candidates and JEV was not confident enough to reorder: a human should look. */
+  needsReview: boolean;
+  /** 0-1: is a retention discount a fitting response for this account? Low = the cause is not price. */
+  discountSuitability: number | null;
 };
 
 export type RetentionCard = {
@@ -187,6 +204,7 @@ export type RetentionCard = {
   annualValue: number;
   /** Empty when there is nothing to recommend (e.g. level Safe). */
   actions: RetentionAction[];
+  judgement?: RetentionJudgement;
 };
 
 export type DeviationCheck = {
