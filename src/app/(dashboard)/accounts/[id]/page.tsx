@@ -110,9 +110,9 @@ export default function AccountPage({ params }: PageProps<"/accounts/[id]">) {
   return (
     <main className="flex w-full flex-col gap-4 px-4 py-4 md:py-6 lg:px-6">
       <div>
-        <LinkButton href={routes.dashboard} variant="outline" size="sm">
+        <LinkButton href={routes.accounts} variant="outline" size="sm">
           <ArrowLeftIcon />
-          Back to the ranking
+          Back to all accounts
         </LinkButton>
       </div>
       {/* cacheComponents: params are runtime data, so they must be read inside Suspense */}

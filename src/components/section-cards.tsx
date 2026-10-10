@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import { AlertTriangleIcon, BanknoteIcon, CircleAlertIcon, FlameIcon, WalletIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { cn } from "cn"
 import { Card } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { LEVEL_STYLES, formatCompactIdr, formatFullIdr } from "@/lib/ranking"
@@ -22,6 +23,7 @@ export function KpiCard({
   footer,
   note,
   info,
+  className,
 }: {
   label: string
   icon: ReactNode
@@ -33,9 +35,10 @@ export function KpiCard({
   note: string
   /** Extra explanation behind a "!" button next to the footer (hover or keyboard focus). */
   info?: ReactNode
+  className?: string
 }) {
   return (
-    <Card className="h-full gap-0 rounded-2xl py-0 shadow-xs">
+    <Card className={cn("@container/kpi h-full gap-0 rounded-2xl py-0 shadow-xs", className)}>
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div className="flex items-start justify-between gap-3">
           <p className="line-clamp-2 min-h-10 text-sm text-muted-foreground">{label}</p>
@@ -43,7 +46,7 @@ export function KpiCard({
             {icon}
           </span>
         </div>
-        <p className="font-heading text-[clamp(1.75rem,1.35rem+1.2vw,2.25rem)] leading-none font-semibold tracking-tight tabular-nums" title={valueTitle}>
+        <p className="font-heading text-2xl leading-none font-semibold tracking-tight whitespace-nowrap tabular-nums @[13rem]/kpi:text-3xl @[17rem]/kpi:text-4xl" title={valueTitle}>
           {value}
           {suffix ? <span className="ml-1.5 text-base font-normal text-muted-foreground">{suffix}</span> : null}
         </p>
@@ -78,14 +81,22 @@ export function KpiCard({
  * F-24 (PRD §6): accounts per level and the total revenue at risk, as four equal tiles.
  * Every number comes from the same F-05 RiskRow[] as the ranking table.
  */
-export function SectionCards({ rows, showSentence = true }: { rows: RiskRow[]; showSentence?: boolean }) {
+export function SectionCards({
+  rows,
+  showSentence = true,
+  gridClassName = "grid grid-cols-1 gap-4 sm:grid-cols-2 @5xl/main:grid-cols-4",
+}: {
+  rows: RiskRow[]
+  showSentence?: boolean
+  gridClassName?: string
+}) {
   const s = summarizeRisk(rows)
   const count = (level: Level) => s.byLevel.find((l) => l.level === level)?.count ?? 0
 
   return (
     <section aria-label="Risk summary" className="flex flex-col gap-3">
       {showSentence ? <p className="text-sm text-muted-foreground">{summarySentence(s)}</p> : null}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 @5xl/main:grid-cols-4">
+      <div className={gridClassName}>
         <KpiCard
           label="Accounts needing attention"
           icon={<AlertTriangleIcon />}

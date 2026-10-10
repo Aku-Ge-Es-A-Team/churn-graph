@@ -2,17 +2,29 @@
 
 import Link from "next/link";
 import { ChevronRightIcon } from "lucide-react";
+import { Pager } from "@/components/pager";
+import { pageOf } from "@/lib/paginate";
 import { routes } from "@/lib/site-config";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LEVEL_STYLES, filterFocus, formatCompactIdr, formatFullIdr, legendFromRows, renewalLabel, signalLabel } from "@/lib/ranking";
-import { FOCUS_ACCOUNT_IDS, type RiskRow } from "@/types/graph";
+import { FOCUS_ACCOUNT_IDS, LEVELS, type Level, type RiskRow } from "@/types/graph";
 
-export function RankingBoard({ rows }: { rows: RiskRow[] }) {
+const PAGE_SIZE = 10;
+
+export function RankingBoard({ rows, initialQuery = "" }: { rows: RiskRow[]; initialQuery?: string }) {
   const [focusOnly, setFocusOnly] = useState(false);
-  const visible = focusOnly ? filterFocus(rows, FOCUS_ACCOUNT_IDS) : rows;
+  const [level, setLevel] = useState<Level | "All">("All");
+  const [page, setPage] = useState(0);
+  const [query, setQuery] = useState(initialQuery);
+  const needle = query.trim().toLowerCase();
+  const searched = needle ? rows.filter((r) => `${r.account} ${r.name}`.toLowerCase().includes(needle)) : rows;
+  const focused = focusOnly ? filterFocus(searched, FOCUS_ACCOUNT_IDS) : searched;
+  const visible = level === "All" ? focused : focused.filter((r) => r.level === level);
+  const view = pageOf(visible, page, PAGE_SIZE);
+  const levelCount = (l: Level) => focused.filter((r) => r.level === l).length;
   const legend = legendFromRows(rows);
   const divergentCount = rows.filter((r) => r.diverges).length;
 
@@ -29,9 +41,48 @@ export function RankingBoard({ rows }: { rows: RiskRow[] }) {
           </span>
           {divergentCount > 0 ? <span>· {divergentCount} where the dashboard disagrees with the findings</span> : null}
         </div>
-        <Button variant={focusOnly ? "default" : "outline"} aria-pressed={focusOnly} onClick={() => setFocusOnly((v) => !v)}>
+        <Button
+          variant={focusOnly ? "default" : "outline"}
+          aria-pressed={focusOnly}
+          onClick={() => {
+            setFocusOnly((v) => !v);
+            setPage(0);
+          }}
+        >
           Focus accounts (C01–C06)
         </Button>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div role="group" aria-label="Filter by level" className="flex flex-wrap gap-2">
+        {(["All", ...LEVELS] as const).map((l) => (
+          <Button
+            key={l}
+            size="sm"
+            variant={level === l ? "default" : "outline"}
+            aria-pressed={level === l}
+            onClick={() => {
+              setLevel(l);
+              setPage(0);
+            }}
+          >
+            {l} <span className="text-xs opacity-70 tabular-nums">{l === "All" ? focused.length : levelCount(l)}</span>
+          </Button>
+        ))}
+      </div>
+      <label className="relative">
+        <span className="sr-only">Search accounts</span>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setPage(0);
+          }}
+          placeholder="Search by ID or name"
+          className="h-9 w-60 rounded-full border bg-card px-4 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        />
+      </label>
       </div>
 
       <section aria-label="Legend" className="rounded-xl border bg-card p-3 text-xs text-muted-foreground shadow-xs">
@@ -46,7 +97,7 @@ export function RankingBoard({ rows }: { rows: RiskRow[] }) {
       </section>
 
       {visible.length === 0 ? (
-        <p className="rounded-lg border p-8 text-center text-muted-foreground">None of the focus accounts is present in this data.</p>
+        <p className="rounded-xl border bg-card p-8 text-center text-muted-foreground">No account matches these filters.</p>
       ) : (
         <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
           <Table>
@@ -63,7 +114,7 @@ export function RankingBoard({ rows }: { rows: RiskRow[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visible.map((row) => (
+              {view.items.map((row) => (
                 <TableRow key={row.account} className={row.diverges ? LEVEL_STYLES[row.level].row : undefined} data-account={row.account}>
                   <TableCell className="tabular-nums text-muted-foreground">{rows.indexOf(row) + 1}</TableCell>
                   <TableCell>
@@ -112,6 +163,7 @@ export function RankingBoard({ rows }: { rows: RiskRow[] }) {
           </Table>
         </div>
       )}
+      <Pager page={view.page} pages={view.pages} onChange={setPage} label="Account table pages" />
     </div>
   );
 }

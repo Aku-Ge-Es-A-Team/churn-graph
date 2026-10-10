@@ -8,6 +8,7 @@ export const routes = {
   home: "/",
   dashboard: "/dashboard",
   ask: "/ask",
+  accounts: "/accounts",
   account: (id: string) => `/accounts/${encodeURIComponent(id)}`,
 } as const;
 
@@ -21,6 +22,7 @@ export const sectionIds = {
 export const dashboardNav = {
   main: [
     { href: routes.dashboard, label: "Risk radar", icon: "radar" },
+    { href: routes.accounts, label: "All accounts", icon: "accounts" },
     { href: routes.ask, label: "Ask the graph", icon: "ask" },
   ],
   secondary: [
